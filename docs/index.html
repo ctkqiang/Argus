@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="description" content="Argus（观枢）文档中心 —— Kubernetes 原生 AI 出口安全网关：透明引流、检测流水线、统一审计事件、TLS 解密与 CA 管理。" />
+  <meta name="theme-color" content="#1677ff" />
+  <title>Argus（观枢）文档中心 | Ant Design 样式</title>
+
+  <!-- 1) 自定义 Argus 主题样式（本地 css/styles.css，离线也能有基础观感） -->
+  <link rel="stylesheet" href="./css/styles.css" />
+
+  <!-- 2) antd 官方文档『浏览器引入』节明确要求的 reset.css，
+       使用官方推荐 CDN：优先 unpkg，失败后由 loader 切 jsdelivr 作为 fallback -->
+  <link rel="preconnect" href="https://unpkg.com" crossorigin />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+  <link rel="dns-prefetch" href="https://unpkg.com" />
+  <link rel="dns-prefetch" href="https://cdn.jsdelivr.net" />
+
+  <link rel="stylesheet" href="https://unpkg.com/antd@5.21.4/dist/reset.css" />
+</head>
+<body>
+  <div id="root"></div>
+
+  <!-- CDN loader（统一维护资源、版本、自动 unpkg → jsdelivr fallback） -->
+  <script src="./js/vendor/cdn-loader.js" defer></script>
+
+  <!-- 业务逻辑（等 loader ready 后 mount） -->
+  <script src="./js/app.js" defer></script>
+
+  <!-- 启动顺序：
+       1) cdn-loader.js 注册 window.ArgusCDN.ready() 串行拉取 React/ReactDOM/dayjs+zh-cn/icons/antd
+       2) 全部就绪后 app.js 调 ArgusDocsApp.mount() 用 ConfigProvider(zhCN) 渲染 -->
+  <script defer>
+    (function () {
+      'use strict';
+      function boot() {
+        if (!window.ArgusCDN || !window.ArgusDocsApp) {
+          return setTimeout(boot, 40);
+        }
+        window.ArgusCDN.ready().then(function () {
+          window.ArgusDocsApp.mount();
+        }).catch(function (err) {
+          // CDN 资源完全失败时，提示用户检查网络；页面上仍能显示 docs 链接（因为 HTML body 里是 React 渲染，
+          // 这里留一条兜底文案到 root 里让用户不至于看到白屏）
+          var root = document.getElementById('root');
+          if (root) {
+            root.innerHTML =
+              '<div style="padding:24px;font-family:system-ui">' +
+              '<h3 style="margin:0 0 8px">CDN 资源加载失败（React/antd）</h3>' +
+              '<p style="margin:0 0 12px;color:#555">请确认网络可以访问 <code>unpkg.com</code> 或 <code>cdn.jsdelivr.net</code>。</p>' +
+              '<ul>' +
+                '<li><a href="architecture.md">architecture.md</a></li>' +
+                '<li><a href="traffic-interception.md">traffic-interception.md</a></li>' +
+                '<li><a href="pod-identity.md">pod-identity.md</a></li>' +
+                '<li><a href="tls-design.md">tls-design.md</a></li>' +
+                '<li><a href="runmodes-failure.md">runmodes-failure.md</a></li>' +
+              '</ul>' +
+              '<p style="color:#666">错误详情：' + String(err && err.message || err) + '</p>' +
+              '</div>';
+          }
+        });
+      }
+      boot();
+    })();
+  </script>
+</body>
+</html>
