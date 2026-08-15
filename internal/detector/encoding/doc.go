@@ -1,4 +1,3 @@
-// Package encoding 实现编码混淆检测器，负责识别并解码 Base64、URL 编码、
-// Unicode 逃逸、Hex、Rot13 以及多层嵌套编码，还原后交给上层 rules/heuristic
-// 做进一步语义检测。检测结果包含原始 payload 与解码链。
+// Package encoding 处理编码绕过：Base64 / URL / Unicode / Hex 嵌套解码，
+// 解出来的明文再交回给 rules / heuristic 重跑一遍。
 package encoding

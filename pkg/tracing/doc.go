@@ -1,4 +1,3 @@
-// Package tracing 提供 OpenTelemetry 分布式追踪初始化工具，
-// 支持 OTLP gRPC/HTTP Exporter、采样率配置、Trace ID 注入到日志上下文。
-// 该包可独立被外部项目引用，不依赖 Argus 内部模块。
+// Package tracing OpenTelemetry 初始化占位。
+// 现在还没接 OTLP，后面接的时候保证外部项目也能直接复用。
 package tracing

@@ -7,41 +7,37 @@ import (
 	"os"
 )
 
-// LogLevel 定义日志级别枚举。
-// 字符串形式便于通过配置文件 / 环境变量直接解析，
-// 严格递增顺序为 Debug < Info < Warn < Error < Fatal。
+// LogLevel 日志级别字符串。直接配成 env 或 YAML 都方便。
+// 顺序：Debug < Info < Warn < Error < Fatal。
 type LogLevel string
 
 const (
-	// Debug 用于开发调试细节，生产默认关闭。启用后会自动附带源码文件与行号。
+	// Debug 开发细节。生产默认关，开了会自动带文件和行号。
 	Debug LogLevel = "debug"
-	// Info 用于正常业务流程的里程碑事件。高吞吐路径下不应滥用，避免日志洪水。
+	// Info 正常流程里的关键节点。别乱打到热路径上把日志撑爆。
 	Info LogLevel = "info"
-	// Warn 用于可恢复的非预期情况，请求本身仍能正常完成。
-	// 例如 "第 2 次重试"、"证书将在 3 天后过期"。
+	// Warn 可恢复的异常：比如第二次重试、证书还有三天过期。
 	Warn LogLevel = "warn"
-	// Error 用于单次请求或单条操作失败，但应用整体仍然健康。
+	// Error 某条操作失败，但整体程序还活着。
 	Error LogLevel = "error"
-	// Fatal 用于应用无法继续运行的致命错误（仅限启动阶段），
-	// 输出后立即以退出码 1 终止进程。业务请求路径禁止使用。
+	// Fatal 启动期才允许用。输出之后直接 os.Exit(1)。请求路径别碰。
 	Fatal LogLevel = "fatal"
 )
 
-// Format 描述日志输出的编码格式。
+// Format 日志输出格式。
 type Format string
 
 const (
-	// FmtText 采用 `key=value` 的人类可读文本形式，适合本地开发与 `tail -f` 场景。
+	// FmtText key=value 的人读文本。本地 tail -f 最舒服。
 	FmtText Format = "text"
-	// FmtJSON 采用每行一条 JSON 的结构化格式，适合 ELK / Loki / Datadog 等日志平台直接消费。
+	// FmtJSON 每行一条 JSON。直接丢给 Loki / Datadog 之类的平台。
 	FmtJSON Format = "json"
 )
 
-// fatalSlogLevel 将自定义的 Fatal 级别映射到 slog 内置 Level 之上的自定义数值。
+// fatalSlogLevel slog 没有 Fatal，我们自己加一段偏移。
 const fatalSlogLevel = slog.LevelError + 4
 
-// levelToSlog 将字符串形式的 LogLevel 转换为 slog.Level。
-// 未识别的值默认降级为 Info，以避免配置写错时日志消失。
+// levelToSlog 把字符串级别映射到 slog.Level。写错了默认回 Info，别把日志直接弄没。
 func levelToSlog(l LogLevel) slog.Level {
 	switch l {
 	case Debug:
@@ -59,8 +55,7 @@ func levelToSlog(l LogLevel) slog.Level {
 	}
 }
 
-// replaceFatalLevel 是 slog Handler 的 ReplaceAttr 钩子，
-// 负责把自定义数值级别的 fatalSlogLevel 渲染成字符串 "fatal"。
+// replaceFatalLevel slog 的 ReplaceAttr 钩子，把我们自己的 fatal 级别渲染成 "fatal"。
 func replaceFatalLevel(_ []string, a slog.Attr) slog.Attr {
 	if a.Key == slog.LevelKey {
 		level, ok := a.Value.Any().(slog.Level)
@@ -71,10 +66,8 @@ func replaceFatalLevel(_ []string, a slog.Attr) slog.Attr {
 	return a
 }
 
-// Logger 是 Argus 项目统一的结构化日志入口。
-// 底层使用标准库 log/slog 实现，零外部依赖。
-// 同一 Logger 上所有方法均并发安全；With 方法返回的派生 Logger
-// 与原始 Logger 共享级别控制器，SetLevel 对所有派生实例同步生效。
+// Logger 结构化日志入口，内部就是 slog。零外部依赖。
+// With 出来的派生 logger 和原 logger 共享 levelVar，动态调级会一起变。
 type Logger struct {
 	inner    *slog.Logger
 	levelVar *slog.LevelVar
@@ -83,28 +76,26 @@ type Logger struct {
 	fmt      Format
 }
 
-// Option 是构造 Logger 的函数式选项，保持构造 API 稳定且向后兼容。
-// 新配置项一律通过新增 WithXxx 函数引入，不修改 NewLogger 签名。
+// Option 给 NewLogger 传可选参数。以后要加配置就写新的 WithXxx，别改 NewLogger 签名。
 type Option func(*Logger)
 
-// WithLevel 设置最低输出级别，低于该级别的日志会被静默丢弃。
+// WithLevel 设最低输出级别。低于这个级别的会被丢掉。
 func WithLevel(level LogLevel) Option {
 	return func(l *Logger) { l.level = level }
 }
 
-// WithOutput 设置日志写入目标，典型取值：os.Stderr、os.Stdout 或任意 io.Writer。
+// WithOutput 设输出目标。os.Stderr / os.Stdout / 任意 io.Writer 都行。
 func WithOutput(w io.Writer) Option {
 	return func(l *Logger) { l.out = w }
 }
 
-// WithFormat 设置日志输出格式（FmtText 或 FmtJSON）。
+// WithFormat 设输出格式：FmtText 或 FmtJSON。
 func WithFormat(f Format) Option {
 	return func(l *Logger) { l.fmt = f }
 }
 
-// NewLogger 根据可变 Option 构造新的 Logger 实例。
-// 默认配置：级别 Info、输出 os.Stderr、格式 FmtText。
-// 当级别设为 Debug 时，会自动开启源码定位 (AddSource)。
+// NewLogger 构造 Logger。
+// 默认：Info 级别、写 os.Stderr、text 格式；Debug 级自动加源码定位。
 func NewLogger(opts ...Option) *Logger {
 	l := &Logger{
 		level:    Info,
@@ -119,8 +110,8 @@ func NewLogger(opts ...Option) *Logger {
 	return l
 }
 
-// buildInner 根据当前配置重建底层 slog.Handler。
-// 仅在 format / output 切换时调用；级别变更走 levelVar 动态更新。
+// buildInner 按当前 output/format 重建 slog.Handler。
+// 级别切换不走这里，直接走 levelVar.Set。
 func (l *Logger) buildInner() {
 	l.levelVar.Set(levelToSlog(l.level))
 
@@ -139,34 +130,31 @@ func (l *Logger) buildInner() {
 	l.inner = slog.New(handler)
 }
 
-// Level 返回当前最低输出级别。
+// Level 当前最低级别。
 func (l *Logger) Level() LogLevel { return l.level }
 
-// Format 返回当前日志输出格式。
+// Format 当前输出格式。
 func (l *Logger) Format() Format { return l.fmt }
 
-// SetLevel 动态调整最低输出级别。所有通过 With 派生的子 Logger 会同步生效，
-// 因为共享同一个 levelVar。该方法并发安全。
+// SetLevel 动态切级别。levelVar 是 slog 自带并发安全的。
 func (l *Logger) SetLevel(level LogLevel) {
 	l.level = level
 	l.levelVar.Set(levelToSlog(level))
 }
 
-// SetFormat 切换日志输出格式。需要重建 Handler，所以调用成本略高于 SetLevel。
+// SetFormat 切格式。需要重建 Handler，比 SetLevel 稍重。
 func (l *Logger) SetFormat(f Format) {
 	l.fmt = f
 	l.buildInner()
 }
 
-// SetOutput 切换日志输出目标。需要重建 Handler。
+// SetOutput 切输出目标。需要重建 Handler。
 func (l *Logger) SetOutput(w io.Writer) {
 	l.out = w
 	l.buildInner()
 }
 
-// LogContext 是核心输出方法：携带 context、级别、消息与可变 KV 字段。
-// 所有 Log* 与 Log*Context 快捷方法均薄包装到此方法，保持唯一真实逻辑点。
-// Fatal 级别会在输出后调用 os.Exit(1)。
+// LogContext 所有输出最终都走这里。Fatal 打完会 os.Exit(1)。
 func (l *Logger) LogContext(ctx context.Context, level LogLevel, msg string, args ...any) {
 	l.inner.Log(ctx, levelToSlog(level), msg, args...)
 	if level == Fatal {
@@ -174,65 +162,63 @@ func (l *Logger) LogContext(ctx context.Context, level LogLevel, msg string, arg
 	}
 }
 
-// Log 以 context.Background() 调用 LogContext。适合快捷调用或不关心取消语义的场景。
+// Log 没 context 的快捷版本，内部用 context.Background()。
 func (l *Logger) Log(level LogLevel, msg string, args ...any) {
 	l.LogContext(context.Background(), level, msg, args...)
 }
 
-// LogDebugContext 输出 Debug 级别日志，携带调用方 context。
+// LogDebugContext Debug。带 ctx。
 func (l *Logger) LogDebugContext(ctx context.Context, msg string, args ...any) {
 	l.LogContext(ctx, Debug, msg, args...)
 }
 
-// LogDebug 等价于 LogDebugContext(context.Background(), ...)。
+// LogDebug Debug。
 func (l *Logger) LogDebug(msg string, args ...any) {
 	l.LogContext(context.Background(), Debug, msg, args...)
 }
 
-// LogInfoContext 输出 Info 级别日志，携带调用方 context。
+// LogInfoContext Info。带 ctx。
 func (l *Logger) LogInfoContext(ctx context.Context, msg string, args ...any) {
 	l.LogContext(ctx, Info, msg, args...)
 }
 
-// LogInfo 等价于 LogInfoContext(context.Background(), ...)。
+// LogInfo Info。
 func (l *Logger) LogInfo(msg string, args ...any) {
 	l.LogContext(context.Background(), Info, msg, args...)
 }
 
-// LogWarnContext 输出 Warn 级别日志，携带调用方 context。
+// LogWarnContext Warn。带 ctx。
 func (l *Logger) LogWarnContext(ctx context.Context, msg string, args ...any) {
 	l.LogContext(ctx, Warn, msg, args...)
 }
 
-// LogWarn 等价于 LogWarnContext(context.Background(), ...)。
+// LogWarn Warn。
 func (l *Logger) LogWarn(msg string, args ...any) {
 	l.LogContext(context.Background(), Warn, msg, args...)
 }
 
-// LogErrorContext 输出 Error 级别日志，携带调用方 context。
+// LogErrorContext Error。带 ctx。
 func (l *Logger) LogErrorContext(ctx context.Context, msg string, args ...any) {
 	l.LogContext(ctx, Error, msg, args...)
 }
 
-// LogError 等价于 LogErrorContext(context.Background(), ...)。
+// LogError Error。
 func (l *Logger) LogError(msg string, args ...any) {
 	l.LogContext(context.Background(), Error, msg, args...)
 }
 
-// LogFatalContext 输出 Fatal 级别日志并以退出码 1 终止进程。
-// 仅限 main 启动阶段使用；请求路径严禁调用。
+// LogFatalContext Fatal。打完就 exit，只给启动装配用。
 func (l *Logger) LogFatalContext(ctx context.Context, msg string, args ...any) {
 	l.LogContext(ctx, Fatal, msg, args...)
 }
 
-// LogFatal 等价于 LogFatalContext(context.Background(), ...)。
+// LogFatal Fatal。
 func (l *Logger) LogFatal(msg string, args ...any) {
 	l.LogContext(context.Background(), Fatal, msg, args...)
 }
 
-// With 为 Logger 附加上下文固定字段（如 trace_id、user_id），返回新的 Logger 实例。
-// 新旧实例共享 levelVar，因而动态调级始终同步。
-// 该方法不可变（immutable）：不会修改接收者本身。
+// With 给 logger 挂一组固定字段（比如 trace_id / user_id），返回新 logger。
+// 接收者本身不变。共享 levelVar，所以动态调级同步生效。
 func (l *Logger) With(args ...any) *Logger {
 	return &Logger{
 		inner:    l.inner.With(args...),
@@ -243,36 +229,36 @@ func (l *Logger) With(args ...any) *Logger {
 	}
 }
 
-// defaultLogger 是包级共享的默认实例。init 中轻量初始化，
-// 并通过 Default / SetLevel / SetOutput / SetFormat 提供受控的可替换能力，
-// 以便单元测试切换到 bytes.Buffer 等内存写入器。
+// defaultLogger 包级默认 logger。init 里轻量 new 一个。
+// 之所以提供 SetOutput / SetFormat / SetLevel，是为了单元测试里
+// 能切到 bytes.Buffer，不会把终端刷满。
 var defaultLogger *Logger
 
 func init() {
 	defaultLogger = NewLogger()
 }
 
-// Default 返回包级默认 Logger。请优先依赖注入具体 Logger，仅在装配层或工具函数中使用本便捷实例。
+// Default 默认 logger。能 DI 就 DI，图省事再用这个。
 func Default() *Logger { return defaultLogger }
 
-// SetLevel 调整默认 Logger 的最低输出级别。对通过 With 派生的所有实例同步生效。
+// SetLevel 调默认 logger 级别。
 func SetLevel(level LogLevel) { defaultLogger.SetLevel(level) }
 
-// SetOutput 切换默认 Logger 的输出目标。
+// SetOutput 切默认 logger 输出。
 func SetOutput(w io.Writer) { defaultLogger.SetOutput(w) }
 
-// SetFormat 切换默认 Logger 的输出格式。
+// SetFormat 切默认 logger 格式。
 func SetFormat(f Format) { defaultLogger.SetFormat(f) }
 
-// With 在默认 Logger 上附加固定字段，返回派生 Logger。
+// With 默认 logger 挂固定字段。
 func With(args ...any) *Logger { return defaultLogger.With(args...) }
 
-// Log 在默认 Logger 上输出指定级别的日志。
+// Log 默认 logger 输出。
 func Log(level LogLevel, msg string, args ...any) {
 	defaultLogger.Log(level, msg, args...)
 }
 
-// LogContext 在默认 Logger 上输出指定级别的日志，携带调用方 context。
+// LogContext 默认 logger 带 ctx 输出。
 func LogContext(ctx context.Context, level LogLevel, msg string, args ...any) {
 	defaultLogger.LogContext(ctx, level, msg, args...)
 }

@@ -1,4 +1,3 @@
-// Package signal 封装 POSIX 信号监听与优雅关停逻辑，
-// 统一处理 SIGINT、SIGTERM、SIGHUP 并转发给 context.WithCancel，
-// 避免 cmd 层与各组件重复实现信号处理。
+// Package signal 信号到 context 的统一转发：SIGINT / SIGTERM 取消，SIGHUP reload。
+// cmd 层就别再自己写 os/signal 处理了，用这个。
 package signal

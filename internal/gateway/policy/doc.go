@@ -1,4 +1,3 @@
-// Package policy 实现策略决策点（PDP），根据 ArgusSecurityPolicy CRD 下发的规则
-// 与 risk 层的聚合评分，做出 allow / block / redirect / mask 四类动作决策。
-// 支持规则热更新与默认兜底策略。
+// Package policy gateway 本地的策略缓存。
+// controller 推送的 PolicyDelta 在这里应用；断流时继续跑上一份快照。
 package policy

@@ -1,4 +1,3 @@
-// Package rules 实现基于规则引擎的 Prompt/Response 安全检测，
-// 支持 YAML/JSON 格式的自定义规则（正则匹配、关键词、词频统计、相似度匹配）。
-// 规则集由控制平面通过 ArgusSecurityPolicy CRD 下发，热加载无需重启。
+// Package rules 规则检测器。
+// 正则 + 关键词 + 词频。规则从 ArgusSecurityPolicy.spec.detectors.rules 下发。
 package rules

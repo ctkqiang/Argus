@@ -1,4 +1,3 @@
-// Package heuristic 实现启发式安全检测，针对 Prompt Injection、Jailbreak、
-// 越权请求、数据外泄等攻击模式做特征工程检测，包含多轮上下文一致性校验、
-// 角色扮演模式识别、指令混淆解码等能力。
+// Package heuristic 做结构特征：字符熵、引号不平衡、非 ASCII 占比、指令前缀词频。
+// 不理解语义，只看形状异常。
 package heuristic
