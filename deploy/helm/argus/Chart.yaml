@@ -1,0 +1,22 @@
+apiVersion: v2
+name: argus
+description: |-
+  Argus(观枢) Kubernetes 原生 AI 大模型出口安全网关。Helm Chart 部署观枢全套集群组件
+  （gateway、controller、CRD、引流层、MutatingWebhook）。
+type: application
+version: 0.1.0
+appVersion: "v0.1.0"
+home: https://github.com/ctkqiang/argus
+sources:
+  - https://github.com/ctkqiang/argus
+keywords:
+  - kubernetes
+  - security
+  - llm
+  - egress-gateway
+  - ai
+  - prompt-injection
+  - cilium
+maintainers:
+  - name: Argus Core Team
+    email: argus@ctkqiang.github.io

@@ -1,0 +1,73 @@
+# Argus(观枢) Helm Chart 默认 Values。
+# 覆盖 spec §16 声明的最小可渲染字段集合；完整注释版后续补充。
+
+# gateway: Argus-Gateway 出向安全网关配置
+gateway:
+  replicas: 2
+  image:
+    repository: ghcr.io/ctkqiang/argus-gateway
+    tag: v0.1.0
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "512Mi"
+    limits:
+      cpu: "2000m"
+      memory: "2Gi"
+  service:
+    type: ClusterIP
+    port: 8443
+  hpa:
+    enabled: true
+    min: 2
+    max: 10
+    targetCPU: 70
+
+# controller: Argus-Controller 策略与事件控制器配置
+controller:
+  replicas: 1
+  image:
+    repository: ghcr.io/ctkqiang/argus-controller
+    tag: v0.1.0
+    pullPolicy: IfNotPresent
+  leaderElection:
+    enabled: true
+  service:
+    type: ClusterIP
+    port: 8444
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "256Mi"
+    limits:
+      cpu: "1000m"
+      memory: "1Gi"
+
+# runMode: 全局默认运行模式与失败模式
+runMode:
+  default: enforce
+  defaultFailureMode: fail-open
+
+# thresholds: 安全判定阈值（score ∈ [0,1]）
+thresholds:
+  blockScore: 0.8
+  logScore: 0.3
+
+# trafficInterceptor: 流量引流引擎（cilium 或 iptables）
+trafficInterceptor:
+  engine: cilium
+
+# tlsInspection: TLS 流量检查配置
+tlsInspection:
+  enabled: true
+  ca:
+    generate: true
+
+# prometheus: Prometheus ServiceMonitor 与指标暴露开关
+prometheus:
+  enabled: true
+
+# crds: 是否随 Helm 安装 CRD
+crds:
+  install: true
