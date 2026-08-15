@@ -1,2 +1,4 @@
-// Package tracing 预留分布式追踪工具，后续接入 OpenTelemetry 以打通 gateway 与 controller 间的调用链。
+// Package tracing 提供 OpenTelemetry 分布式追踪初始化工具，
+// 支持 OTLP gRPC/HTTP Exporter、采样率配置、Trace ID 注入到日志上下文。
+// 该包可独立被外部项目引用，不依赖 Argus 内部模块。
 package tracing

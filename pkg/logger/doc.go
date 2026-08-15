@@ -1,2 +1,4 @@
-// Package logger 基于 zap 提供全局日志器，支持按级别与格式初始化，并通过 WithField/WithFields 派生带上下文的子日志器。
+// Package logger 是 internal/utilities/logger 的对外薄封装，
+// 暴露与内部一致的结构化日志接口供下游集成方使用。实现上仅做类型转发，
+// 保证内部日志行为与外部 SDK 行为严格一致。
 package logger
