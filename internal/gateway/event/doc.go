@@ -1,2 +1,4 @@
-// Package event 实现 EventService 的流式上报客户端，将 AIEvent 批量上报至 controller 并在失败时本地落盘兜底。
+// Package event 负责 AIEvent 审计事件的结构化构造与异步上报，
+// 包含请求/响应摘要、风险评分、决策动作、身份元数据等字段。上报失败支持本地缓冲重试，
+// 不阻塞主请求链路。
 package event

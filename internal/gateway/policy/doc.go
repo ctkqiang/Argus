@@ -1,2 +1,4 @@
-// Package policy 实现策略引擎，依据 risk_score 与 ArgusSecurityPolicy 快照在 monitor/enforce 与 fail-open/fail-closed 组合下给出放行或阻断决策。
+// Package policy 实现策略决策点（PDP），根据 ArgusSecurityPolicy CRD 下发的规则
+// 与 risk 层的聚合评分，做出 allow / block / redirect / mask 四类动作决策。
+// 支持规则热更新与默认兜底策略。
 package policy
