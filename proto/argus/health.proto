@@ -1,0 +1,46 @@
+/*
+  Argus 观枢 - HealthService 双向健康检查契约
+  本文件定义 Gateway 与 Controller 之间的心跳与健康探测接口。
+  MVP 阶段使用自定义空消息 ControllerHealthRequest，避免依赖 google.protobuf.Empty。
+*/
+syntax = "proto3";
+
+package argus.health.v1alpha1;
+
+option go_package = "github.com/ctkqiang/argus/pkg/pb/argus/health/v1alpha1;health";
+
+// HealthService 定义 Gateway 与 Controller 双向健康检查服务。
+service HealthService {
+  // GatewayHeartbeat Gateway 向 Controller 发送双向流式心跳。
+  rpc GatewayHeartbeat(stream Heartbeat) returns (HeartbeatAck);
+
+  // ControllerHealth Gateway 主动探测 Controller 健康状态。
+  rpc ControllerHealth(ControllerHealthRequest) returns (HealthStatus);
+}
+
+// ControllerHealthRequest 健康检查请求，MVP 阶段为空消息。
+message ControllerHealthRequest {}
+
+// Heartbeat Gateway 上报的心跳载荷，含运行指标与计数器。
+message Heartbeat {
+  string gateway_id = 1;
+  int64 timestamp = 2;
+  int64 active_connections = 3;
+  string running_mode = 4;
+  map<string, int64> counters = 5;
+}
+
+// HeartbeatAck Controller 对心跳的确认，可携带下行指令。
+message HeartbeatAck {
+  int64 received_at = 1;
+  string controller_id = 2;
+  string instruction = 3;
+}
+
+// HealthStatus Controller 健康状态报告。
+message HealthStatus {
+  bool healthy = 1;
+  string message = 2;
+  map<string, string> details = 3;
+  int64 timestamp = 4;
+}

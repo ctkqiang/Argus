@@ -1,0 +1,109 @@
+/*
+  Argus 观枢 - EventService 安全事件上报契约
+  本文件定义标准化 AIEvent（Spec §14，字段编号严格 1-18 顺序保持一致）
+  以及 Gateway 向 Controller 批量流式上报事件的服务接口。
+
+  字段编号约定（禁止改动顺序或插入中间编号）：
+    1-2  事件头：event_id、timestamp
+    3-7  身份溯源：cluster_id、namespace、pod_name、workload、container
+    8-9  网络流：source_ip、destination
+   10-11 模型归属：provider、model
+   12-13 会话追踪：session_id、request_id
+   14-15 载荷：request_payload、response_payload（默认 4KiB 截断 + 脱敏）
+   16-18 决策：detection_results、risk_score、final_action
+*/
+syntax = "proto3";
+
+package argus.event.v1alpha1;
+
+option go_package = "github.com/ctkqiang/argus/pkg/pb/argus/event/v1alpha1;event";
+
+import "argus/detection.proto";
+
+// EventService 定义 Gateway 向 Controller 上报安全事件的服务。
+//
+// Gateway 端通过客户端流式一次性把一批 AIEvent 推送到 Controller，
+// Controller 在整批写盘（或入队列）后返回一次 ReportAck，Gateway
+// 据此更新本地游标与重试列表。事件语义遵循 at-least-once，
+// Controller 端必须基于 event_id 做幂等写入。
+service EventService {
+  // ReportEvents 流式批量上报 AIEvent，Controller 返回单次批量确认。
+  // 请求流：AIEvent（客户端写流，写完即 half-close）。
+  // 响应：ReportAck（整批处理完成后返回一次）。
+  rpc ReportEvents(stream AIEvent) returns (ReportAck);
+}
+
+// AIEvent 标准化安全事件结构，字段编号严格遵循 Spec §14 约定（1-18）。
+// 严禁新增字段占用 1-18，后续扩展一律从编号 19 开始追加。
+message AIEvent {
+  // event_id 是事件的全局唯一标识符；推荐使用 uuid v4 或 雪花 ID。
+  string event_id = 1;
+
+  // timestamp 是事件发生时间，Unix epoch 毫秒数。
+  int64 timestamp = 2;
+
+  // cluster_id 是事件所属 Kubernetes 集群的稳定唯一标识。
+  // MVP 取 kube-system namespace 的 kube-root-ca.crt ConfigMap hash。
+  string cluster_id = 3;
+
+  // namespace 是发出本次出站请求的源 Pod 所在命名空间。
+  string namespace = 4;
+
+  // pod_name 是发出本次出站请求的源 Pod 名称。
+  string pod_name = 5;
+
+  // workload 是源 Pod 对应的上层工作负载名称（如 Deployment 名称）。
+  string workload = 6;
+
+  // container 是产生出站连接的源容器名。MVP 阶段允许返回空字符串（粒度到 pod）。
+  string container = 7;
+
+  // source_ip 是 TCP 五元组中的源 IP，一般即 PodIP；hostNetwork 模式为节点 IP。
+  string source_ip = 8;
+
+  // destination 是出站请求目的端，推荐填域名（SNI/Host），无法解析时填 IP:port。
+  string destination = 9;
+
+  // provider 是匹配的 LLMProvider.metadata.name。
+  string provider = 10;
+
+  // model 是请求中携带的模型 ID（如 gpt-4o），解析不到时留空。
+  string model = 11;
+
+  // session_id 由网关按 (namespace, pod, provider, model, 时间窗口) 聚合生成，
+  // 用于把多次请求串联成一条业务会话。
+  string session_id = 12;
+
+  // request_id 优先复用上游请求头 X-Request-Id；缺失时由网关生成 UUID。
+  string request_id = 13;
+
+  // request_payload 是截断 + 脱敏后的请求体字符串，默认最大 4KiB。
+  string request_payload = 14;
+
+  // response_payload 是截断 + 脱敏后的响应体字符串，默认最大 4KiB。
+  string response_payload = 15;
+
+  // detection_results 为所有命中（及未命中但启用的）检测器输出，按流水线顺序追加。
+  repeated argus.detection.v1alpha1.DetectionResult detection_results = 16;
+
+  // risk_score 是风险引擎综合打分，范围 [0.0, 1.0]。
+  double risk_score = 17;
+
+  // final_action 表示网关最终决策，枚举值：allow / block / degraded-allow / degraded-block。
+  string final_action = 18;
+}
+
+// ReportAck Controller 对事件上报的批量确认消息。
+message ReportAck {
+  // received_events 是本流中 Controller 实际收到的事件条数。
+  int64 received_events = 1;
+
+  // persisted_events 是成功写入持久化介质（本地 PV / 对象存储）的事件条数。
+  int64 persisted_events = 2;
+
+  // failed_event_ids 是本轮处理失败的事件 ID 列表，Gateway 应在下一条流中重试上报。
+  repeated string failed_event_ids = 3;
+
+  // last_event_id 是最后一条成功持久化的事件 ID，Gateway 用它更新本地游标。
+  string last_event_id = 4;
+}

@@ -1,0 +1,35 @@
+/*
+  Argus 观枢 - PodIdentityService Pod 身份溯源契约
+  本文件定义 Gateway 通过源 IP:Port 查询集群内 Pod 身份元数据的服务。
+  Controller 基于 conntrack + CNI 状态 + Kubernetes API 做身份映射。
+*/
+syntax = "proto3";
+
+package argus.identity.v1alpha1;
+
+option go_package = "github.com/ctkqiang/argus/pkg/pb/argus/identity/v1alpha1;identity";
+
+// PodIdentityService 定义按源 IP 溯源 Pod 身份的查询服务。
+service PodIdentityService {
+  // Lookup 基于 (源 IP, 源端口, 时间戳) 查询对应的 Pod 身份元数据。
+  rpc Lookup(PodIdentityRequest) returns (PodIdentityResponse);
+}
+
+// PodIdentityRequest Pod 身份查询请求。
+message PodIdentityRequest {
+  string source_ip = 1;
+  int32 source_port = 2;
+  int64 timestamp = 3;
+}
+
+// PodIdentityResponse Pod 身份查询响应，含命名空间、工作负载等元数据。
+message PodIdentityResponse {
+  bool found = 1;
+  string namespace = 2;
+  string pod_name = 3;
+  string workload = 4;
+  string workload_kind = 5;
+  string container = 6;
+  string host_network = 7;
+  int64 cache_hit = 8;
+}

@@ -1,0 +1,95 @@
+/*
+  Argus 观枢 - DetectionService 检测服务契约
+  本文件定义 Gateway 内部调用的 Prompt 检测器流水线抽象接口。
+  支持单请求 Detect 和流式 DetectStream，便于后续替换为进程外远程检测器。
+*/
+syntax = "proto3";
+
+package argus.detection.v1alpha1;
+
+option go_package = "github.com/ctkqiang/argus/pkg/pb/argus/detection/v1alpha1;detection";
+
+// DetectionService 定义 Prompt 安全检测服务。
+service DetectionService {
+  // Detect 单次同步检测请求，返回检测结果与综合风险评分。
+  rpc Detect(DetectRequest) returns (DetectResponse);
+
+  // DetectStream 流式检测，适合逐 token 或多轮会话场景。
+  rpc DetectStream(stream DetectRequest) returns (stream DetectResponse);
+}
+
+// LLMRequest 解析后的大模型出站请求结构化数据。
+message LLMRequest {
+  string provider = 1;
+  string adapter = 2;
+  string model = 3;
+  repeated ChatMessage messages = 4;
+  string system = 5;
+  repeated ToolDef tools = 6;
+  repeated string prompt_parts = 7;
+  string path = 8;
+}
+
+// ChatMessage 单条对话消息，含角色、内容、可选工具调用。
+message ChatMessage {
+  string role = 1;
+  string content = 2;
+  string name = 3;
+  repeated ToolCall tool_calls = 4;
+}
+
+// ToolCall LLM 发起的工具调用请求。
+message ToolCall {
+  string id = 1;
+  string type = 2;
+  FunctionCall function = 3;
+}
+
+// FunctionCall 函数调用的名称与序列化参数。
+message FunctionCall {
+  string name = 1;
+  string arguments = 2;
+}
+
+// ToolDef 客户端声明的可用工具定义。
+message ToolDef {
+  string type = 1;
+  FunctionDef function = 2;
+}
+
+// FunctionDef 函数工具的元信息与 JSON Schema 参数描述。
+message FunctionDef {
+  string name = 1;
+  string description = 2;
+  string parameters_json = 3;
+}
+
+// DetectionContext 多轮会话检测上下文，供语义检测器参考历史。
+message DetectionContext {
+  string session_id = 1;
+  repeated LLMRequest history = 2;
+  int32 round_index = 3;
+}
+
+// DetectRequest 检测器输入：当前请求 + 会话上下文 + 策略名。
+message DetectRequest {
+  LLMRequest request = 1;
+  DetectionContext context = 2;
+  string policy_name = 3;
+}
+
+// DetectResponse 检测器输出：各检测器明细结果 + 综合风险分。
+message DetectResponse {
+  repeated DetectionResult results = 1;
+  double risk_score = 2;
+}
+
+// DetectionResult 单个检测器的检测结果明细。
+message DetectionResult {
+  string detector = 1;
+  string type = 2;
+  double score = 3;
+  bool matched = 4;
+  string evidence = 5;
+  repeated string matched_ranges = 6;
+}

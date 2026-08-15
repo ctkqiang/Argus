@@ -1,0 +1,115 @@
+/*
+  Argus 观枢 - PolicyService 策略下发契约
+  本文件定义 Controller 向 Gateway 下发 ArgusSecurityPolicy 和 LLMProvider
+  配置的双向流式 gRPC 服务。Gateway 发起 watch，Controller 推送全量+增量快照。
+*/
+syntax = "proto3";
+
+package argus.policy.v1alpha1;
+
+option go_package = "github.com/ctkqiang/argus/pkg/pb/argus/policy/v1alpha1;policy";
+
+// PolicyService 定义策略与 Provider 配置下发服务。
+service PolicyService {
+  // WatchPolicies 双向流式监听 ArgusSecurityPolicy 变更。
+  // Gateway 发送自身 ID 与已知版本号，Controller 推送全量或增量快照。
+  rpc WatchPolicies(stream WatchRequest) returns (stream PolicySnapshot);
+
+  // WatchProviders 双向流式监听 LLMProvider 配置变更。
+  rpc WatchProviders(stream WatchRequest) returns (stream ProviderSnapshot);
+}
+
+// WatchRequest Gateway 向 Controller 发起的 watch 请求，携带本地已知版本。
+message WatchRequest {
+  string gateway_id = 1;
+  string last_known_version = 2;
+}
+
+// PolicySnapshot Controller 下发的 ArgusSecurityPolicy 策略快照。
+message PolicySnapshot {
+  int64 version = 1;
+  repeated ArgusSecurityPolicyItem items = 2;
+  bool full_snapshot = 3;
+}
+
+// ArgusSecurityPolicyItem 单条安全策略条目，对应 CRD ArgusSecurityPolicy。
+message ArgusSecurityPolicyItem {
+  string name = 1;
+  string namespace = 2;
+  string mode = 3;
+  string failure_mode = 4;
+  repeated string providers = 5;
+  DetectorConfig detectors = 6;
+  ThresholdConfig thresholds = 7;
+  ScopeConfig scope = 8;
+}
+
+// DetectorConfig 配置各检测器开关与参数。
+message DetectorConfig {
+  RulesDetectorConfig rules = 1;
+  SimpleToggle heuristic = 2;
+  SimpleToggle encoding = 3;
+  SimpleToggle semantic = 4;
+}
+
+// RulesDetectorConfig 基于规则的检测器配置。
+message RulesDetectorConfig {
+  bool enabled = 1;
+  repeated RuleSpec rules = 2;
+}
+
+// RuleSpec 单条规则定义，含匹配模式与权重。
+message RuleSpec {
+  string id = 1;
+  string pattern = 2;
+  string type = 3;
+  double weight = 4;
+}
+
+// SimpleToggle 简单开关型配置。
+message SimpleToggle {
+  bool enabled = 1;
+}
+
+// ThresholdConfig 风险阈值配置，决定 log / block 行为。
+message ThresholdConfig {
+  double block_score = 1;
+  double log_score = 2;
+}
+
+// ScopeConfig 策略生效范围：命名空间 + 工作负载匹配。
+message ScopeConfig {
+  repeated string namespaces = 1;
+  repeated WorkloadMatch workloads = 2;
+}
+
+// WorkloadMatch 按 kind + name 匹配工作负载。
+message WorkloadMatch {
+  string kind = 1;
+  string name = 2;
+}
+
+// ProviderSnapshot Controller 下发的 LLMProvider 配置快照。
+message ProviderSnapshot {
+  int64 version = 1;
+  repeated LLMProviderItem items = 2;
+  bool full_snapshot = 3;
+}
+
+// LLMProviderItem 单条 LLM Provider 配置条目，对应 CRD LLMProvider。
+message LLMProviderItem {
+  string name = 1;
+  string namespace = 2;
+  string type = 3;
+  repeated string hosts = 4;
+  repeated string sni = 5;
+  UpstreamConfig upstream = 6;
+  string adapter = 7;
+  repeated string models = 8;
+  bool skip_tls_inspection = 9;
+}
+
+// UpstreamConfig Provider 上游连接配置。
+message UpstreamConfig {
+  string scheme = 1;
+}
