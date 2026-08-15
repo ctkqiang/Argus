@@ -1,0 +1,15 @@
+apiVersion: argus.cncf/v1alpha1
+kind: LLMProvider
+metadata:
+  name: openai
+spec:
+  type: openai
+  hosts: ["api.openai.com"]
+  sni:   ["api.openai.com"]
+  upstream:
+    base_url: "https://api.openai.com/v1"
+    auth_secret_ref:
+      name: "openai-api-key"
+      key:  "api_key"
+  models: ["gpt-4o", "gpt-4o-mini", "gpt-3.5-turbo"]
+  skipTLSInspection: false

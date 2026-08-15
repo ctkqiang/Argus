@@ -1,0 +1,20 @@
+# Argus Controller 本地开发示例配置
+server:
+  grpc:
+    addr: :8444
+  metrics:
+    addr: :9090
+
+leader_election:
+  enabled: true
+  lease_name: argus-controller-lock
+
+event:
+  sink: local_pv
+  local:
+    dir: /var/lib/argus/events
+    max_file_size_mb: 100
+    retention_days: 30
+
+identity:
+  cache_ttl: 5m

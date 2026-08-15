@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "argus.fullname" . }}-controller
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "argus.labels" . | nindent 4 }}
+    app.kubernetes.io/component: controller
+spec:
+  replicas: {{ .Values.controller.replicas }}
+  selector:
+    matchLabels:
+      {{- include "argus.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: controller
+  template:
+    metadata:
+      labels:
+        {{- include "argus.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: controller
+    spec:
+      serviceAccountName: {{ default (printf "%s-controller" (include "argus.fullname" .)) .Values.controller.serviceAccount.name }}
+      containers:
+        - name: controller
+          image: "{{ .Values.controller.image.repository }}:{{ .Values.controller.image.tag }}"
+          imagePullPolicy: {{ .Values.controller.image.pullPolicy }}
+          args:
+            - --leader-election={{ .Values.controller.leaderElection.enabled | toString }}
+            - --metrics-addr=:9090
+          ports:
+            - name: grpc
+              containerPort: {{ .Values.controller.service.port }}
+            - name: metrics
+              containerPort: 9090
+          resources: {{ toYaml .Values.controller.resources | nindent 12 }}
+          readinessProbe: { httpGet: { path: /readyz, port: 9090 }, initialDelaySeconds: 5, periodSeconds: 5 }
+          livenessProbe:  { httpGet: { path: /healthz, port: 9090 }, initialDelaySeconds: 15, periodSeconds: 20 }

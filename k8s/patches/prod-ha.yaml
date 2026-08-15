@@ -1,0 +1,15 @@
+# 生产：至少 2 controller，至少 3 gateway，配 PDB + TopologySpreadConstraints
+# （这里只给一个最基本的 replicas 补丁，PDB/TSC 组件写完再加）
+- op: replace
+  path: /spec/replicas
+  value: 3
+  target:
+    kind: Deployment
+    name: argus-gateway
+---
+- op: replace
+  path: /spec/replicas
+  value: 2
+  target:
+    kind: Deployment
+    name: argus-controller

@@ -1,0 +1,4 @@
+# 开发环境省资源：gateway/controller 都跑 1 副本。
+- op: replace
+  path: /spec/replicas
+  value: 1

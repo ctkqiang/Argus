@@ -1,0 +1,10 @@
+Argus 已安装到 {{ .Release.Namespace }}。
+
+下一步：
+1. 确认 CRD：kubectl get crds | grep argus
+2. 确认 Pods：kubectl -n {{ .Release.Namespace }} get pods -owide -w
+3. 装样例 CR：kubectl apply -f https://raw.githubusercontent.com/ctkqiang/argus/main/deploy/examples/llmprovider-openai.yaml
+                kubectl apply -f https://raw.githubusercontent.com/ctkqiang/argus/main/deploy/examples/argussecuritypolicy-default.yaml
+
+没配引流模板前，gateway Deployment 会跑起来但不会实际拿到任何业务流量。
+参见 deploy/helm/argus/templates/cilium 或 iptables 里的 README。

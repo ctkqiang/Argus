@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argus-gateway
+  namespace: argus
+  labels:
+    app.kubernetes.io/component: gateway
+    app.kubernetes.io/name: argus
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: gateway
+      app.kubernetes.io/name: argus
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: gateway
+        app.kubernetes.io/name: argus
+    spec:
+      serviceAccountName: argus-gateway
+      containers:
+        - name: gateway
+          image: ghcr.io/ctkqiang/argus-gateway:v0.1.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: proxy
+              containerPort: 8443
+            - name: metrics
+              containerPort: 9090
+          resources:
+            requests: { cpu: 500m, memory: 512Mi }
+            limits:   { cpu: "2", memory: 2Gi }
+          readinessProbe: { httpGet: { path: /readyz, port: 9090 }, initialDelaySeconds: 5, periodSeconds: 5 }
+          livenessProbe:  { httpGet: { path: /healthz, port: 9090 }, initialDelaySeconds: 15, periodSeconds: 20 }

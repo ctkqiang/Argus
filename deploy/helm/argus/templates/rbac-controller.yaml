@@ -1,0 +1,29 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "argus.fullname" . }}-controller
+  labels: {{ include "argus.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["argus.cncf"]
+    resources: ["argussecuritypolicies", "argussecuritypolicies/status", "llmproviders", "llmproviders/status"]
+    verbs: ["get", "list", "watch", "patch", "update"]
+  - apiGroups: [""]
+    resources: ["pods", "endpointslices", "namespaces", "services", "nodes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets", "daemonsets", "replicasets"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "argus.fullname" . }}-controller
+  labels: {{ include "argus.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "argus.fullname" . }}-controller
+subjects:
+  - kind: ServiceAccount
+    name: {{ default (printf "%s-controller" (include "argus.fullname" .)) .Values.controller.serviceAccount.name }}
+    namespace: {{ .Release.Namespace }}

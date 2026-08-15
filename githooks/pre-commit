@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# 本地 pre-commit：格式 + 静态 + 最基本的 secret / 危险代码拦截。
+# 不想装就 `git config --unset core.hooksPath`。CI 里会重跑这一套。
+set -euo pipefail
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT"
+
+# 1) gofmt + go vet (跳过生成文件)
+GOGEN=$(gofmt -l . 2>/dev/null || true)
+if [ -n "$GOGEN" ]; then
+  echo "[pre-commit] gofmt dirty: $GOGEN" >&2
+  echo "[pre-commit] run: make fmt" >&2
+  exit 1
+fi
+if command -v go >/dev/null 2>&1; then
+  go vet ./... >&2
+fi
+
+# 2) 硬编码 sk-xxx 真 key（示例 sk-xxxx 允许）。
+BAD_SECRET="$(git diff --cached --name-only -z | xargs -0 -I{}   sh -c 'grep -InE "sk-[A-Za-z0-9]{20,}" -- "$1" || true' _ {} || true)"
+if [ -n "$BAD_SECRET" ]; then
+  echo "[pre-commit] looks like real OpenAI key in commit:" >&2
+  echo "$BAD_SECRET" >&2
+  exit 2
+fi
+
+# 3) InsecureSkipVerify 赋值（tls doc.go 注释里写的不算）。
+BAD_TLS="$(git diff --cached -U0 -- '*.go' | grep -E '^\+.*InsecureSkipVerify\s*=\s*true' || true)"
+if [ -n "$BAD_TLS" ]; then
+  echo "[pre-commit] InsecureSkipVerify=true found:" >&2
+  echo "$BAD_TLS" >&2
+  exit 3
+fi
+
+exit 0

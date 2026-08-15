@@ -1,0 +1,4 @@
+resource_group_name  = "your-argus-tfstate-rg"
+storage_account_name = "yourargustfstate01"
+container_name       = "tfstate"
+key                  = "argus/envs/dev"

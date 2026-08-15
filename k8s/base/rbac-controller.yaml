@@ -1,0 +1,29 @@
+# 最小权限原则（只给 controller 必须的权限）。
+# gateway 在这里不申请 k8s 权限（身份/策略全走 gRPC 问 controller）。
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: argus-controller
+rules:
+  - apiGroups: ["argus.cncf"]
+    resources: ["argussecuritypolicies", "argussecuritypolicies/status", "llmproviders", "llmproviders/status"]
+    verbs: ["get", "list", "watch", "patch", "update"]
+  - apiGroups: [""]
+    resources: ["pods", "endpointslices", "namespaces", "services", "nodes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets", "daemonsets", "replicasets"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: argus-controller
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: argus-controller
+subjects:
+  - kind: ServiceAccount
+    name: argus-controller
+    namespace: argus

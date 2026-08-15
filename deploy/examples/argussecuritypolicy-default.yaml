@@ -1,0 +1,19 @@
+apiVersion: argus.cncf/v1alpha1
+kind: ArgusSecurityPolicy
+metadata:
+  name: default-policy
+spec:
+  mode: enforce
+  failureMode: fail-open
+  providers: [{ name: openai }]
+  detectors:
+    rules:     { enabled: true }
+    heuristic: { enabled: true }
+    encoding:  { enabled: true }
+    semantic:  { enabled: false }
+  thresholds:
+    risk: { low: 0.3, medium: 0.6, high: 0.85 }
+  scope:
+    namespaces: ["default"]
+    workloads: []
+    excludeNamespaces: ["kube-system", "argus"]

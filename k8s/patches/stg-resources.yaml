@@ -1,0 +1,6 @@
+# 预发布：和生产同 resources 但不用 HPA，压测前先手动看稳态。
+- op: add
+  path: /spec/template/spec/containers/0/resources
+  value:
+    requests: { cpu: "1", memory: "1Gi" }
+    limits:   { cpu: "4", memory: "4Gi" }

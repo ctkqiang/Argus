@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# 1) Title 必须 <type>: <subject>，type 集合限制。
+# 2) 作者邮箱必须是弟弟的真实邮箱，不许假身份。
+set -euo pipefail
+
+FILE="$1"
+LINE1="$(head -n 1 "${FILE}" || true)"
+
+if ! printf '%s' "$LINE1" | grep -Eq '^(feat|fix|chore|docs|build|test|refactor|style|ci)(\([a-zA-Z0-9_./-]+\))?: '; then
+  echo "[commit-msg] title must start with type: eg. fix(proto/event): ..." >&2
+  echo "[commit-msg] got: ${LINE1}" >&2
+  exit 1
+fi
+
+CORRECT="johnmelodymel@qq.com"
+if [ "$(git config user.email)" != "${CORRECT}" ]; then
+  echo "[commit-msg] git config user.email must be ${CORRECT}, got: $(git config user.email)" >&2
+  exit 2
+fi
+
+exit 0

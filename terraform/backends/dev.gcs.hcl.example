@@ -1,0 +1,2 @@
+bucket = "your-argus-tfstate-dev"
+prefix = "argus/envs/dev"

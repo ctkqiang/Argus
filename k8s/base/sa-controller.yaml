@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: argus-controller
+  namespace: argus
+  labels:
+    app.kubernetes.io/name: argus

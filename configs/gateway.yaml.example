@@ -1,0 +1,27 @@
+# Argus Gateway 本地开发示例配置（真实部署走 helm values + env overlay）
+server:
+  proxy:
+    addr: :8443
+  metrics:
+    addr: :9090
+
+controller:
+  addr: argus-controller.argus.svc:8444
+  timeout: 2s
+
+run:
+  mode: enforce
+  failure_mode: fail-open
+
+tls:
+  inspect: true
+  ca_secret: argus-ca-tls            # k8s Secret in argus namespace, keys: tls.crt, tls.key
+  leaf_secret: argus-leaf-tls
+
+detection:
+  pipeline_timeout: 2s
+  detectors:
+    rules:     { enabled: true }
+    heuristic: { enabled: true }
+    encoding:  { enabled: true }
+    semantic:  { enabled: false }

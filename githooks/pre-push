@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# 可选：推之前跑短测试。太长不想跑就删掉这个文件也行。
+set -euo pipefail
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT"
+if command -v go >/dev/null 2>&1; then
+  go test -short ./... >&2
+fi

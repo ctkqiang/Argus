@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "argus.fullname" . }}-gateway
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "argus.labels" . | nindent 4 }}
+    app.kubernetes.io/component: gateway
+spec:
+  replicas: {{ .Values.gateway.replicas }}
+  selector:
+    matchLabels:
+      {{- include "argus.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: gateway
+  template:
+    metadata:
+      labels:
+        {{- include "argus.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: gateway
+    spec:
+      serviceAccountName: {{ default (printf "%s-gateway" (include "argus.fullname" .)) .Values.gateway.serviceAccount.name }}
+      containers:
+        - name: gateway
+          image: "{{ .Values.gateway.image.repository }}:{{ .Values.gateway.image.tag }}"
+          imagePullPolicy: {{ .Values.gateway.image.pullPolicy }}
+          ports:
+            - name: proxy
+              containerPort: {{ .Values.gateway.service.port }}
+            - name: metrics
+              containerPort: 9090
+          resources: {{ toYaml .Values.gateway.resources | nindent 12 }}
+          readinessProbe: { httpGet: { path: /readyz, port: 9090 }, initialDelaySeconds: 5, periodSeconds: 5 }
+          livenessProbe:  { httpGet: { path: /healthz, port: 9090 }, initialDelaySeconds: 15, periodSeconds: 20 }
+{{- if .Values.gateway.hpa.enabled }}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "argus.fullname" . }}-gateway
+  namespace: {{ .Release.Namespace }}
+  labels: {{ include "argus.labels" . | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "argus.fullname" . }}-gateway
+  minReplicas: {{ .Values.gateway.hpa.min }}
+  maxReplicas: {{ .Values.gateway.hpa.max }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: { type: Utilization, averageUtilization: {{ .Values.gateway.hpa.targetCPU }} }
+{{- end }}

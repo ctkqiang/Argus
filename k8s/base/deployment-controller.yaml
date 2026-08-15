@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argus-controller
+  namespace: argus
+  labels:
+    app.kubernetes.io/component: controller
+    app.kubernetes.io/name: argus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: controller
+      app.kubernetes.io/name: argus
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: controller
+        app.kubernetes.io/name: argus
+    spec:
+      serviceAccountName: argus-controller
+      containers:
+        - name: controller
+          image: ghcr.io/ctkqiang/argus-controller:v0.1.0
+          imagePullPolicy: IfNotPresent
+          args:
+            - --leader-election=true
+            - --metrics-addr=:9090
+          ports:
+            - name: grpc
+              containerPort: 8444
+            - name: metrics
+              containerPort: 9090
+          resources:
+            requests: { cpu: 250m, memory: 256Mi }
+            limits:   { cpu: 1000m, memory: 1Gi }
+          readinessProbe: { httpGet: { path: /readyz, port: 9090 }, initialDelaySeconds: 5, periodSeconds: 5 }
+          livenessProbe:  { httpGet: { path: /healthz, port: 9090 }, initialDelaySeconds: 15, periodSeconds: 20 }

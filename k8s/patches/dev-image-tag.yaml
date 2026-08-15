@@ -1,0 +1,12 @@
+# 开发环境：把镜像 tag 改成 latest，方便调试刚 push 的构建。
+# 验证：kustomize build k8s/overlays/dev | grep 'image:'
+- op: replace
+  path: /spec/template/spec/containers/0/image
+  value: ghcr.io/ctkqiang/argus-gateway:latest
+---
+- op: replace
+  path: /spec/template/spec/containers/0/image
+  value: ghcr.io/ctkqiang/argus-controller:latest
+  target:
+    kind: Deployment
+    name: argus-controller

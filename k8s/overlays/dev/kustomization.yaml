@@ -1,0 +1,7 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: argus
+resources: [../../base]
+patches:
+  - path: ../patches/dev-image-tag.yaml
+  - path: ../patches/dev-single-replica.yaml

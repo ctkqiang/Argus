@@ -1,0 +1,5 @@
+bucket         = "your-argus-tfstate-dev"
+key            = "argus/envs/dev/terraform.tfstate"
+region         = "us-east-1"
+dynamodb_table = "your-argus-tfstate-lock-dev"
+encrypt        = true
