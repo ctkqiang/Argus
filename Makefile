@@ -34,7 +34,8 @@ help:
 	@echo "── 开发环境（一键启动）──"
 	@echo "  run               - 一键启动 Minikube + 构建镜像 + 部署 + 端口转发（默认入口）"
 	@echo "  dev-up            - 同 make run"
-	@echo "  dev-down          - 停止并删除 Minikube 开发集群"
+	@echo "  kill              - 停止开发环境（保留集群数据，下次 make run 秒恢复）"
+	@echo "  dev-down          - 停止并删除 Minikube 开发集群（彻底释放磁盘）"
 	@echo "  dev-status        - 查看开发环境 Pod/Service 状态"
 	@echo "  dev-logs          - 实时查看所有 Pod 日志（tail）"
 	@echo "  dev-rebuild       - 重新构建镜像并滚动更新（代码改了跑这个）"
@@ -65,6 +66,10 @@ help:
 run: dev-up
 dev-up:
 	@bash scripts/dev-up.sh
+
+.PHONY: kill
+kill:
+	@bash scripts/dev-kill.sh
 
 .PHONY: dev-down
 dev-down:
