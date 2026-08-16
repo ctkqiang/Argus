@@ -53,6 +53,7 @@ const (
 
 // FinalAction 网关最后的放行/阻断决策。
 // 一旦在 policy engine 里定好，网关必须严格执行（不能"没匹配就随便放"）。
+// proto3 默认禁止 enum alias（同号多值），因此不写 allow_alias 就是"不允许"。
 type FinalAction int32
 
 const (
@@ -115,6 +116,7 @@ func (FinalAction) EnumDescriptor() ([]byte, []int) {
 }
 
 // Severity 事件整体严重度，与 policy.thresholds 的四段严格对齐。
+// proto3 默认禁止 enum alias（同号多值），因此不写 allow_alias 就是"不允许"。
 type Severity int32
 
 const (
@@ -598,19 +600,19 @@ const file_argus_event_proto_rawDesc = "" +
 	"retryDelay\x12=\n" +
 	"\fwindow_start\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\vwindowStart\x129\n" +
 	"\n" +
-	"window_end\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\twindowEnd*\xa8\x01\n" +
+	"window_end\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\twindowEnd*\xa4\x01\n" +
 	"\vFinalAction\x12\x1c\n" +
 	"\x18FINAL_ACTION_UNSPECIFIED\x10\x00\x12\x16\n" +
 	"\x12FINAL_ACTION_ALLOW\x10\x01\x12\x16\n" +
 	"\x12FINAL_ACTION_BLOCK\x10\x02\x12\x1f\n" +
 	"\x1bFINAL_ACTION_DEGRADED_ALLOW\x10\x03\x12\x1f\n" +
-	"\x1bFINAL_ACTION_DEGRADED_BLOCK\x10\x04\x1a\x02\x10\x00\"\x05\bd\x10\xe7\a*\x80\x01\n" +
+	"\x1bFINAL_ACTION_DEGRADED_BLOCK\x10\x04\"\x05\bd\x10\xe7\a*|\n" +
 	"\bSeverity\x12\x18\n" +
 	"\x14SEVERITY_UNSPECIFIED\x10\x00\x12\x10\n" +
 	"\fSEVERITY_LOW\x10\x01\x12\x13\n" +
 	"\x0fSEVERITY_MEDIUM\x10\x02\x12\x11\n" +
 	"\rSEVERITY_HIGH\x10\x03\x12\x15\n" +
-	"\x11SEVERITY_CRITICAL\x10\x04\x1a\x02\x10\x00\"\x05\bd\x10\xe7\a2`\n" +
+	"\x11SEVERITY_CRITICAL\x10\x04\"\x05\bd\x10\xe7\a2`\n" +
 	"\fEventService\x12P\n" +
 	"\fReportEvents\x12\x1d.argus.event.v1alpha1.AIEvent\x1a\x1f.argus.event.v1alpha1.ReportAck(\x01B=Z;github.com/ctkqiang/argus/pkg/pb/argus/event/v1alpha1;eventb\x06proto3"
 

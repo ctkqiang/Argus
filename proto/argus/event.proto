@@ -46,9 +46,8 @@ service EventService {
 
 // FinalAction 网关最后的放行/阻断决策。
 // 一旦在 policy engine 里定好，网关必须严格执行（不能"没匹配就随便放"）。
+// proto3 默认禁止 enum alias（同号多值），因此不写 allow_alias 就是"不允许"。
 enum FinalAction {
-  option allow_alias = false;
-
   // 未设置；gateway / controller 都要把 UNSPECIFIED 当非法输入处理
   // （要么 WARN+降级到 BLOCK，要么直接拒绝入库，看 policy.thresholds）。
   FINAL_ACTION_UNSPECIFIED = 0;
@@ -67,9 +66,8 @@ enum FinalAction {
 }
 
 // Severity 事件整体严重度，与 policy.thresholds 的四段严格对齐。
+// proto3 默认禁止 enum alias（同号多值），因此不写 allow_alias 就是"不允许"。
 enum Severity {
-  option allow_alias = false;
-
   // 未评级：gateway 要当异常处理（至少打 WARN 日志），别默认塞给用户。
   SEVERITY_UNSPECIFIED = 0;
 
