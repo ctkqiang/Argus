@@ -31,6 +31,22 @@ package argus.event.v1alpha1;
 
 option go_package = "github.com/ctkqiang/argus/pkg/pb/argus/event/v1alpha1;event";
 
+// ---- Import 根约定（看到 "argus/detection.proto was not found" 就先读这里）----
+// 本项目 proto import 根 = ${REPO_ROOT}/proto（不是 ${REPO_ROOT}）。
+// 真实文件布局：
+//   ${REPO_ROOT}/proto/argus/event.proto      <- 你正在看的文件
+//   ${REPO_ROOT}/proto/argus/detection.proto  <- 下一行 import 解析的真实文件
+// 所以写 `import "argus/detection.proto";` 是对的，FQN
+// `argus.detection.v1alpha1.DetectionResult` 正好匹配 detection.proto 里
+// `package argus.detection.v1alpha1;` + `message DetectionResult` 的声明。
+// 报错 "Import not found / DetectionResult undefined"？
+// 99% 是编辑器插件没把 proto/ 设成 import 根（非 Buf 插件默认用项目根）。
+// 修复三选一（推荐顺序 A > B > C）：
+//   A) 装 VSCode Buf 插件（bufbuild.vscode-buf）：自动读根 buf.yaml，零配置。
+//   B) CLI 直接在根跑 `buf lint` / `buf build`：根 buf.yaml 已配置 modules.path=proto。
+//   C) 非 Buf protoc 类插件：在 .vscode/settings.json 写
+//        "protoc": { "options": ["--proto_path=${workspaceFolder}/proto"] }
+//      .gitignore 已放开共享 settings.json（仅排除个人私密 workspace/cache 项）。
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/duration.proto";
 import "argus/detection.proto";

@@ -20,7 +20,16 @@ coverage.html
 
 # IDE
 .idea/
-.vscode/
+# .vscode 目录分两部分：
+#   * 需要团队共享的（settings/extensions/launch/tasks）允许提交
+#   * 个人侧（工作区、同步状态、inspect 快照、缓存）继续忽略
+.vscode/*.code-workspace
+.vscode/settings-sync*.json
+.vscode/inspect*
+.vscode/*.log
+.vscode/globalStorage/
+.vscode/workspaceStorage/
+.vscode/History/
 *.swp
 *.swo
 *~

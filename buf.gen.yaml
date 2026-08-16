@@ -1,0 +1,14 @@
+# 项目根 buf.gen.yaml（和 proto/buf.gen.yaml 完全一致）
+#
+# 目的：在项目根直接运行 `buf generate`（配合根 buf.yaml），产出与 cd proto/ && buf generate
+# 完全相同的 10 份 Go 桩，避免团队成员忘记切 proto/ 目录导致的生成失败。
+version: v2
+plugins:
+  - local: protoc-gen-go
+    out: .
+    opt: module=github.com/ctkqiang/argus
+  - local: protoc-gen-go-grpc
+    out: .
+    opt:
+      - module=github.com/ctkqiang/argus
+      - require_unimplemented_servers=false

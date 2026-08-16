@@ -1,0 +1,32 @@
+# 项目根 buf.yaml（Argus 顶层入口）
+#
+# 作用：
+#   1) 让 VSCode 的 Buf 官方插件（bufbuild.vscode-buf）在打开项目根时立刻知道
+#      proto import 根是 ./proto，从而正确解析 `import "argus/detection.proto";`
+#      不会再在 event.proto L47 报 "Import was not found"、L181 报
+#      "DetectionResult is not defined"。
+#   2) 让 CLI 使用习惯和 IDE 对齐：在项目根直接跑 `buf lint` / `buf build` /
+#      `buf generate`，与 cd proto/ 再跑等价，不必切目录。
+#   3) proto/buf.yaml 是"权威源"配置（lint except、breaking use 等），本文件的
+#      lint/breaking 字段完全对齐 proto/buf.yaml（复制粘贴保持一致即可；不要
+#      两边各自维护一套）。
+#
+# 关键：modules.path=proto 表示"当前 Buf module 的根 = ./proto"，
+# 而 module 根默认**已经隐式是 import 根**，所以 includes 不能再写 ["proto"]
+# （会被 buf CLI 判定为"include path == module path"报错）。
+# 保持 modules 只有 path=proto 一行就够用。
+version: v2
+modules:
+  - path: proto
+lint:
+  use:
+    - STANDARD
+  except:
+    - DIRECTORY_SAME_PACKAGE
+    - PACKAGE_DIRECTORY_MATCH
+    - RPC_REQUEST_STANDARD_NAME
+    - RPC_RESPONSE_STANDARD_NAME
+    - RPC_REQUEST_RESPONSE_UNIQUE
+breaking:
+  use:
+    - FILE
