@@ -1,5 +1,7 @@
 # traffic-interception.md — 透明出口引流四方案对比 & MVP 首选/兜底
 
+![出口引流四方案对比](./images/traffic-interception-compare.svg)
+
 ## 1. 对比表（四方案各自的优势 + 硬限制，不绕弯）
 
 | 方案 | 工作层 | 对业务影响（越小越好） | 优势 | **硬限制**（必须写进部署前检查项） |

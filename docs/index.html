@@ -100,6 +100,24 @@
         </div>
       </div>
 
+      <!-- 架构总览图 -->
+      <div class="section-title">
+        <h2>架构总览</h2>
+        <span class="sub">业务零改造 · 出口透明引流 · 检测流水线 · 统一审计</span>
+      </div>
+      <div class="card">
+        <div class="card-body">
+          <a href="architecture.html" title="点击查看完整架构设计">
+            <img src="./images/architecture-overview.svg" alt="Argus 系统架构总览图" style="width:100%;border-radius:8px;display:block;" />
+          </a>
+          <p style="text-align:center;color:var(--text-secondary);font-size:13px;margin-top:12px;margin-bottom:0;">
+            图：业务 Pod → Cilium EGW → argus-gateway → argus-controller → LLM 厂商
+            <br/>
+            MutatingWebhook 仅在 Pod 创建期注入 CA，业务运行时零感知
+          </p>
+        </div>
+      </div>
+
       <!-- 核心能力 -->
       <div class="section-title">
         <h2>核心能力</h2>

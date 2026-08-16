@@ -1,0 +1,121 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 520" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1677ff"/>
+    </marker>
+    <marker id="arrowGray" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#8c8c8c"/>
+    </marker>
+    <marker id="arrowGreen" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#52c41a"/>
+    </marker>
+    <marker id="arrowPurple" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#722ed1"/>
+    </marker>
+  </defs>
+
+  <!-- 背景 -->
+  <rect width="880" height="520" fill="#fafafa" rx="12"/>
+
+  <!-- 标题 -->
+  <text x="440" y="32" text-anchor="middle" font-size="18" font-weight="700" fill="#1f1f1f">Argus（观枢）逻辑拓扑总览</text>
+  <text x="440" y="52" text-anchor="middle" font-size="12" fill="#8c8c8c">业务零改造 · 出口透明引流 · 检测流水线 · 统一审计</text>
+
+  <!-- Zone 1: 业务命名空间 -->
+  <rect x="30" y="80" width="180" height="380" rx="8" fill="#e6f4ff" stroke="#91caff" stroke-width="1.5" stroke-dasharray="4 4"/>
+  <text x="120" y="100" text-anchor="middle" font-size="12" font-weight="600" fill="#0958d9">业务命名空间</text>
+  <text x="120" y="116" text-anchor="middle" font-size="11" fill="#0958d9">（无 sidecar / 零改造）</text>
+  <!-- Pod -->
+  <rect x="55" y="240" width="130" height="60" rx="6" fill="#fff" stroke="#1677ff" stroke-width="2"/>
+  <text x="120" y="262" text-anchor="middle" font-size="13" font-weight="700" fill="#1f1f1f">业务 Pod</text>
+  <text x="120" y="280" text-anchor="middle" font-size="11" fill="#595959">openai.chat...</text>
+  <text x="120" y="294" text-anchor="middle" font-size="10" fill="#8c8c8c">Host: api.openai.com</text>
+
+  <!-- Zone 2: argus-system 引流层 -->
+  <rect x="240" y="80" width="170" height="380" rx="8" fill="#f6ffed" stroke="#b7eb8f" stroke-width="1.5" stroke-dasharray="4 4"/>
+  <text x="325" y="100" text-anchor="middle" font-size="12" font-weight="600" fill="#389e0d">argus-system：引流层</text>
+  <text x="325" y="116" text-anchor="middle" font-size="11" fill="#389e0d">（仅出口，节点级）</text>
+  <!-- Cilium EGW -->
+  <rect x="260" y="170" width="130" height="80" rx="6" fill="#fff" stroke="#52c41a" stroke-width="2"/>
+  <text x="325" y="194" text-anchor="middle" font-size="13" font-weight="700" fill="#1f1f1f">Cilium EGW</text>
+  <text x="325" y="212" text-anchor="middle" font-size="10" fill="#595959">或 iptables TPROXY</text>
+  <text x="325" y="228" text-anchor="middle" font-size="10" fill="#8c8c8c">L3/L4 eBPF hook</text>
+  <text x="325" y="242" text-anchor="middle" font-size="10" fill="#8c8c8c">Pod 粒度策略</text>
+  <!-- 故障降级 -->
+  <rect x="260" y="330" width="130" height="56" rx="6" fill="#fffbe6" stroke="#ffe58f" stroke-width="1.5"/>
+  <text x="325" y="350" text-anchor="middle" font-size="11" font-weight="600" fill="#d48806">故障降级</text>
+  <text x="325" y="366" text-anchor="middle" font-size="10" fill="#8c8c8c">透传直通 + 告警</text>
+  <text x="325" y="380" text-anchor="middle" font-size="10" fill="#8c8c8c">不静默丢包</text>
+
+  <!-- Zone 3: argus-system 观枢组件 -->
+  <rect x="440" y="80" width="220" height="380" rx="8" fill="#fff7e6" stroke="#ffd591" stroke-width="1.5" stroke-dasharray="4 4"/>
+  <text x="550" y="100" text-anchor="middle" font-size="12" font-weight="600" fill="#d46b08">argus-system：观枢组件</text>
+  <text x="550" y="116" text-anchor="middle" font-size="11" fill="#d46b08">（gateway + controller + webhook）</text>
+
+  <!-- Gateway -->
+  <rect x="460" y="135" width="180" height="100" rx="6" fill="#fff" stroke="#fa8c16" stroke-width="2"/>
+  <text x="550" y="158" text-anchor="middle" font-size="13" font-weight="700" fill="#1f1f1f">argus-gateway</text>
+  <text x="550" y="174" text-anchor="middle" font-size="10" fill="#595959">多副本 + HPA · 零 RBAC</text>
+  <line x1="470" y1="184" x2="630" y2="184" stroke="#ffd591" stroke-width="1"/>
+  <text x="550" y="200" text-anchor="middle" font-size="10" fill="#595959">SNI 识别 · TLS 终止</text>
+  <text x="550" y="214" text-anchor="middle" font-size="10" fill="#595959">检测流水线（rules→heur→enc）</text>
+  <text x="550" y="228" text-anchor="middle" font-size="10" fill="#595959">策略引擎 + 风险打分</text>
+
+  <!-- Controller -->
+  <rect x="460" y="255" width="180" height="100" rx="6" fill="#fff" stroke="#fa541c" stroke-width="2"/>
+  <text x="550" y="278" text-anchor="middle" font-size="13" font-weight="700" fill="#1f1f1f">argus-controller</text>
+  <text x="550" y="294" text-anchor="middle" font-size="10" fill="#595959">单副本 + Leader Election</text>
+  <line x1="470" y1="304" x2="630" y2="304" stroke="#ffccc7" stroke-width="1"/>
+  <text x="550" y="320" text-anchor="middle" font-size="10" fill="#595959">PolicyService gRPC 推送</text>
+  <text x="550" y="334" text-anchor="middle" font-size="10" fill="#595959">PodIdentity.Lookup · EventSrv</text>
+  <text x="550" y="348" text-anchor="middle" font-size="10" fill="#595959">事件落本地 PV（jsonl）</text>
+
+  <!-- MutatingWebhook -->
+  <rect x="460" y="375" width="180" height="70" rx="6" fill="#fff" stroke="#faad14" stroke-width="2"/>
+  <text x="550" y="398" text-anchor="middle" font-size="13" font-weight="700" fill="#1f1f1f">MutatingWebhook</text>
+  <text x="550" y="416" text-anchor="middle" font-size="10" fill="#595959">仅注 CA + 设 SSL_CERT_FILE</text>
+  <text x="550" y="430" text-anchor="middle" font-size="10" fill="#8c8c8c">不 sidecar / 不改 SDK / 不改 BASE_URL</text>
+
+  <!-- Zone 4: LLM 厂商 -->
+  <rect x="690" y="80" width="160" height="380" rx="8" fill="#f9f0ff" stroke="#d3adf7" stroke-width="1.5" stroke-dasharray="4 4"/>
+  <text x="770" y="100" text-anchor="middle" font-size="12" font-weight="600" fill="#531dab">LLM 厂商侧</text>
+  <text x="770" y="116" text-anchor="middle" font-size="11" fill="#531dab">（原始域名直连）</text>
+  <rect x="710" y="240" width="120" height="60" rx="6" fill="#fff" stroke="#722ed1" stroke-width="2"/>
+  <text x="770" y="262" text-anchor="middle" font-size="12" font-weight="700" fill="#1f1f1f">api.openai.com</text>
+  <text x="770" y="280" text-anchor="middle" font-size="10" fill="#595959">真实域名解析</text>
+  <text x="770" y="294" text-anchor="middle" font-size="10" fill="#8c8c8c">SSE/HTTP2 原样反压</text>
+
+  <!-- 流量箭头 -->
+  <!-- 1. Pod → Cilium -->
+  <line x1="185" y1="270" x2="255" y2="210" stroke="#1677ff" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="220" y="232" font-size="10" fill="#1677ff" font-weight="600">①ClientHello</text>
+
+  <!-- 2. Cilium → Gateway -->
+  <line x1="395" y1="210" x2="455" y2="185" stroke="#1677ff" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="400" y="172" font-size="10" fill="#1677ff" font-weight="600">②TPROXY 重定向</text>
+
+  <!-- 3. Gateway ↔ Controller（双向） -->
+  <line x1="550" y1="240" x2="550" y2="252" stroke="#8c8c8c" stroke-width="1.5" marker-end="url(#arrowGray)"/>
+  <line x1="540" y1="252" x2="540" y2="240" stroke="#8c8c8c" stroke-width="1.5" marker-end="url(#arrowGray)"/>
+  <text x="635" y="250" font-size="10" fill="#595959">③Policy/Identity/Events</text>
+
+  <!-- 4. Gateway → LLM 厂商 -->
+  <line x1="645" y1="180" x2="705" y2="265" stroke="#52c41a" stroke-width="2" marker-end="url(#arrowGreen)"/>
+  <text x="660" y="218" font-size="10" fill="#52c41a" font-weight="600">④放行后原 SNI 出站</text>
+
+  <!-- 5. Webhook → Pod -->
+  <line x1="455" y1="410" x2="185" y2="305" stroke="#722ed1" stroke-width="2" stroke-dasharray="3 3" marker-end="url(#arrowPurple)"/>
+  <text x="285" y="375" font-size="10" fill="#722ed1" font-weight="600">⑤Pod 创建时注 CA</text>
+
+  <!-- 图例 -->
+  <g transform="translate(30, 482)">
+    <line x1="0" y1="6" x2="20" y2="6" stroke="#1677ff" stroke-width="2" marker-end="url(#arrow)"/>
+    <text x="28" y="10" font-size="10" fill="#595959">业务流量</text>
+    <line x1="100" y1="6" x2="120" y2="6" stroke="#52c41a" stroke-width="2" marker-end="url(#arrowGreen)"/>
+    <text x="128" y="10" font-size="10" fill="#595959">放行出站</text>
+    <line x1="200" y1="6" x2="220" y2="6" stroke="#722ed1" stroke-width="2" stroke-dasharray="3 3" marker-end="url(#arrowPurple)"/>
+    <text x="228" y="10" font-size="10" fill="#595959">CA 注入（Pod 创建期）</text>
+    <line x1="380" y1="6" x2="400" y2="6" stroke="#8c8c8c" stroke-width="1.5" marker-end="url(#arrowGray)"/>
+    <text x="408" y="10" font-size="10" fill="#595959">控制面 gRPC</text>
+  </g>
+</svg>

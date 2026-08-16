@@ -1,5 +1,7 @@
 # runmodes-failure.md — monitor / enforce × fail-open / fail-closed + §12.3 24 格矩阵
 
+![运行模式 2×2 矩阵](./images/run-modes-matrix.svg)
+
 ## 1. 基本语义（别混，错了会让业务/安全两边都骂）
 
 | 维度 | 值 | 语义 |

@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 560" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif">
+  <rect width="760" height="560" fill="#fafafa" rx="12"/>
+  <text x="380" y="32" text-anchor="middle" font-size="18" font-weight="700" fill="#1f1f1f">运行模式 2×2 矩阵</text>
+  <text x="380" y="52" text-anchor="middle" font-size="11" fill="#8c8c8c">ASP.mode（怎么处理命中）× ASP.failureMode（安全层自己挂了怎么办）</text>
+
+  <!-- 坐标轴标注 -->
+  <text x="380" y="84" text-anchor="middle" font-size="12" font-weight="700" fill="#1677ff">ASP.mode（命中策略）</text>
+  <text x="200" y="84" text-anchor="middle" font-size="11" fill="#389e0d">monitor（放行）</text>
+  <text x="560" y="84" text-anchor="middle" font-size="11" fill="#cf1322">enforce（阻断）</text>
+
+  <text x="30" y="290" text-anchor="middle" font-size="12" font-weight="700" fill="#fa8c16" transform="rotate(-90 30 290)">ASP.failureMode</text>
+  <text x="55" y="200" text-anchor="middle" font-size="11" fill="#52c41a" transform="rotate(-90 55 200)">fail-open（业务第一）</text>
+  <text x="55" y="380" text-anchor="middle" font-size="11" fill="#fa541c" transform="rotate(-90 55 380)">fail-closed（安全第一）</text>
+
+  <!-- 4 格 -->
+  <!-- (monitor, fail-open) -->
+  <g transform="translate(80, 100)">
+    <rect width="280" height="180" rx="8" fill="#f6ffed" stroke="#52c41a" stroke-width="2"/>
+    <rect width="280" height="32" rx="8" fill="#52c41a"/>
+    <rect y="24" width="280" height="8" fill="#52c41a"/>
+    <text x="140" y="22" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">monitor · fail-open</text>
+    <text x="14" y="56" font-size="11" font-weight="700" fill="#389e0d">语义</text>
+    <text x="14" y="74" font-size="10" fill="#595959">• 100% 恶意也放行</text>
+    <text x="14" y="88" font-size="10" fill="#595959">• 安全层挂了流量也过</text>
+    <text x="14" y="108" font-size="11" font-weight="700" fill="#1f1f1f">适用</text>
+    <text x="14" y="126" font-size="10" fill="#595959">上线初期 / 误报率未稳</text>
+    <text x="14" y="144" font-size="10" fill="#595959">业务连续性优先</text>
+    <text x="14" y="164" font-size="10" font-weight="700" fill="#1f1f1f">行为：放行 + ALLOW</text>
+  </g>
+
+  <!-- (monitor, fail-closed) -->
+  <g transform="translate(80, 290)">
+    <rect width="280" height="180" rx="8" fill="#fff7e6" stroke="#fa8c16" stroke-width="2"/>
+    <rect width="280" height="32" rx="8" fill="#fa8c16"/>
+    <rect y="24" width="280" height="8" fill="#fa8c16"/>
+    <text x="140" y="22" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">monitor · fail-closed</text>
+    <text x="14" y="56" font-size="11" font-weight="700" fill="#d46b08">语义</text>
+    <text x="14" y="74" font-size="10" fill="#595959">• mode 优先于 failureMode</text>
+    <text x="14" y="88" font-size="10" fill="#595959">• 组件没坏 → monitor 仍放行</text>
+    <text x="14" y="102" font-size="10" fill="#595959">• 组件坏 → fail-closed 掐断</text>
+    <text x="14" y="122" font-size="11" font-weight="700" fill="#1f1f1f">注意</text>
+    <text x="14" y="140" font-size="10" fill="#cf1322" font-weight="600">⚠ fail-closed 不影响"已判定"</text>
+    <text x="14" y="154" font-size="10" fill="#cf1322" font-weight="600">  monitor 的命中</text>
+    <text x="14" y="170" font-size="10" font-weight="700" fill="#1f1f1f">行为：放行 + ALLOW（坏时 BLOCK）</text>
+  </g>
+
+  <!-- (enforce, fail-open) -->
+  <g transform="translate(400, 100)">
+    <rect width="280" height="180" rx="8" fill="#e6f4ff" stroke="#1677ff" stroke-width="2"/>
+    <rect width="280" height="32" rx="8" fill="#1677ff"/>
+    <rect y="24" width="280" height="8" fill="#1677ff"/>
+    <text x="140" y="22" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">enforce · fail-open</text>
+    <text x="14" y="56" font-size="11" font-weight="700" fill="#0958d9">语义</text>
+    <text x="14" y="74" font-size="10" fill="#595959">• 风险 ≥ blockScore 阻断</text>
+    <text x="14" y="88" font-size="10" fill="#595959">• 安全层挂了 → 降级放行</text>
+    <text x="14" y="108" font-size="11" font-weight="700" fill="#1f1f1f">适用</text>
+    <text x="14" y="126" font-size="10" fill="#595959">稳定上线后用</text>
+    <text x="14" y="140" font-size="10" fill="#595959">业务可用性 &gt; 安全严苛</text>
+    <text x="14" y="164" font-size="10" font-weight="700" fill="#1f1f1f">行为：阻断 / DEGRADED_ALLOW</text>
+  </g>
+
+  <!-- (enforce, fail-closed) -->
+  <g transform="translate(400, 290)">
+    <rect width="280" height="180" rx="8" fill="#fff1f0" stroke="#ff4d4f" stroke-width="2"/>
+    <rect width="280" height="32" rx="8" fill="#ff4d4f"/>
+    <rect y="24" width="280" height="8" fill="#ff4d4f"/>
+    <text x="140" y="22" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">enforce · fail-closed</text>
+    <text x="14" y="56" font-size="11" font-weight="700" fill="#cf1322">语义</text>
+    <text x="14" y="74" font-size="10" fill="#595959">• 风险 ≥ blockScore 阻断</text>
+    <text x="14" y="88" font-size="10" fill="#595959">• 安全层挂了 → 掐断</text>
+    <text x="14" y="108" font-size="11" font-weight="700" fill="#1f1f1f">适用</text>
+    <text x="14" y="126" font-size="10" fill="#595959">强合规 / 涉密 namespace</text>
+    <text x="14" y="140" font-size="10" fill="#595959">安全第一，业务可牺牲</text>
+    <text x="14" y="164" font-size="10" font-weight="700" fill="#1f1f1f">行为：阻断 + DEGRADED_BLOCK</text>
+  </g>
+
+  <!-- 关键规则 -->
+  <g transform="translate(80, 490)">
+    <rect width="600" height="60" rx="6" fill="#e6f4ff" stroke="#91caff" stroke-width="1.5"/>
+    <text x="14" y="22" font-size="11" font-weight="700" fill="#0958d9">运维要刻进骨子里的两条：</text>
+    <text x="14" y="40" font-size="10" fill="#595959">1. mode 永远优先于 failureMode 的字面"闭"——monitor 下不阻断</text>
+    <text x="14" y="54" font-size="10" fill="#595959">2. 事件上报故障绝不改变放行/阻断决策——日志挂了不能掐业务</text>
+  </g>
+</svg>

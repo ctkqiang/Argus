@@ -1,5 +1,7 @@
 # tls-design.md — 两种可见模式 + CA 信任模型 + 证书轮换 + 风险 + 降级
 
+![TLS 两种可见模式](./images/tls-inspection-modes.svg)
+
 ## 1. 两种可见模式
 
 | 模式 | 能否看到 HTTP body / prompt？ | 适用场景 | 对客户端的要求 |

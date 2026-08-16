@@ -1,5 +1,7 @@
 # pod-identity.md — 身份溯源链路 & 准确性矩阵
 
+![Pod 身份溯源链路](./images/pod-identity-chain.svg)
+
 ## 1. 目标
 
 gateway 里 **看不到** 业务 Pod 的 netns / 进程 / k8s 资源（checklist C2、§7 gateway Pod 零 RBAC）。

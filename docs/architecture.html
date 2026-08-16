@@ -34,6 +34,7 @@
     </header>
     <main class="doc-content">
       <h1 id="architecturemd-argus">architecture.md — Argus（观枢）逻辑拓扑 &amp; 报文流转</h1>
+<p><img alt="Argus 系统架构总览" src="./images/architecture-overview.svg" /></p>
 <h2 id="1">1. 目标与边界（先把"没做的"摆出来）</h2>
 <p>MVP 阶段一（§14）<strong>明确不做</strong>的事这里先列出来，免得设计文档给人错觉：<br />
 - 不支持多家厂商适配，只做 OpenAI 兼容协议的出向。<br />
@@ -79,6 +80,9 @@
 </tbody>
 </table>
 <h2 id="3-mermaid">3. 逻辑拓扑图（Mermaid）</h2>
+<blockquote>
+<p>下图为逻辑组件分布与流量走向，文字版上方已有 SVG 总览图。</p>
+</blockquote>
 <pre><code class="language-mermaid">flowchart LR
   subgraph UserNS[&quot;业务命名空间（无 sidecar / 零改造）&quot;]
     P1[&quot;业务 Pod&quot;]
@@ -103,6 +107,7 @@
   CT -- &quot;Policy Watch / Identity Lookup / Events&quot; --&gt; GW
 </code></pre>
 <h2 id="4-13">4. 一条请求完整流转（13 步，含失败分支）</h2>
+<p><img alt="请求完整流转 13 步" src="./images/request-flow.svg" /></p>
 <ol>
 <li>业务 Pod 业务代码直接调用 <code>openai.chat.completions.create()</code>，Host=<code>api.openai.com</code>。<br />
    * （C3 要求：源码 / Dockerfile / SDK 零修改；没设 OPENAI_BASE_URL。）</li>
@@ -132,6 +137,7 @@
 <li>gateway 放行路径：用和业务原目的 IP/SNI 一致的出站连接去 <code>api.openai.com</code>，SSE/body 原样反压回业务客户端；阻断路径：直接回 451，且上报 <code>final_action=BLOCK</code>。</li>
 </ol>
 <h2 id="5">5. 数据一致性 &amp; 故障语义</h2>
+<p><img alt="K8s 部署拓扑" src="./images/deployment-topology.svg" /></p>
 <ul>
 <li>事件语义"至少一次"：ReportAck 带 <code>retry_delay_ms</code>，失败重试窗口 <code>[window_start_ms, window_end_ms]</code>（见 event.proto）。</li>
 <li>controller 重启后 PolicyService 必须推全量快照，gateway 拿到新快照前用旧快照 + 自己的 <code>failureMode</code>。</li>

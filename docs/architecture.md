@@ -1,5 +1,7 @@
 # architecture.md — Argus（观枢）逻辑拓扑 & 报文流转
 
+![Argus 系统架构总览](./images/architecture-overview.svg)
+
 ## 1. 目标与边界（先把"没做的"摆出来）
 
 MVP 阶段一（§14）**明确不做**的事这里先列出来，免得设计文档给人错觉：
@@ -19,6 +21,10 @@ MVP 阶段一（§14）**明确不做**的事这里先列出来，免得设计�
 | MutatingWebhook（CA 注入） | argus-system 命名空间 | 仅做两件事：① 为白名单内 Pod 注入 argus CA 到 trust store；② 设环境变量如 SSL_CERT_FILE。 | 不 sidecar、不改 SDK、不篡改 OPENAI_BASE_URL。 |
 
 ## 3. 逻辑拓扑图（Mermaid）
+
+> 下图为逻辑组件分布与流量走向，文字版上方已有 SVG 总览图。
+
+
 
 ```mermaid
 flowchart LR
@@ -47,6 +53,10 @@ flowchart LR
 
 ## 4. 一条请求完整流转（13 步，含失败分支）
 
+![请求完整流转 13 步](./images/request-flow.svg)
+
+
+
 1. 业务 Pod 业务代码直接调用 `openai.chat.completions.create()`，Host=`api.openai.com`。
    * （C3 要求：源码 / Dockerfile / SDK 零修改；没设 OPENAI_BASE_URL。）
 2. 容器内程序发起 `TCP connect(api.openai.com:443)`，DNS 解析仍返回真实 LLM 厂商 IP（C5）。
@@ -73,6 +83,10 @@ flowchart LR
 13. gateway 放行路径：用和业务原目的 IP/SNI 一致的出站连接去 `api.openai.com`，SSE/body 原样反压回业务客户端；阻断路径：直接回 451，且上报 `final_action=BLOCK`。
 
 ## 5. 数据一致性 & 故障语义
+
+![K8s 部署拓扑](./images/deployment-topology.svg)
+
+
 
 - 事件语义"至少一次"：ReportAck 带 `retry_delay_ms`，失败重试窗口 `[window_start_ms, window_end_ms]`（见 event.proto）。
 - controller 重启后 PolicyService 必须推全量快照，gateway 拿到新快照前用旧快照 + 自己的 `failureMode`。

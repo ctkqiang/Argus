@@ -1,0 +1,115 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 720" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1677ff"/>
+    </marker>
+    <marker id="arrR" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#ff4d4f"/>
+    </marker>
+    <marker id="arrG" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#52c41a"/>
+    </marker>
+  </defs>
+
+  <rect width="900" height="720" fill="#fafafa" rx="12"/>
+  <text x="450" y="30" text-anchor="middle" font-size="18" font-weight="700" fill="#1f1f1f">一条 LLM 请求的完整流转（13 步）</text>
+  <text x="450" y="50" text-anchor="middle" font-size="11" fill="#8c8c8c">含失败分支与事件上报路径</text>
+
+  <!-- 4 个泳道 -->
+  <text x="80" y="92" text-anchor="middle" font-size="12" font-weight="700" fill="#0958d9">业务 Pod</text>
+  <text x="280" y="92" text-anchor="middle" font-size="12" font-weight="700" fill="#389e0d">引流层</text>
+  <text x="500" y="92" text-anchor="middle" font-size="12" font-weight="700" fill="#d46b08">argus-gateway</text>
+  <text x="720" y="92" text-anchor="middle" font-size="12" font-weight="700" fill="#531dab">argus-controller</text>
+
+  <line x1="80" y1="105" x2="80" y2="690" stroke="#91caff" stroke-width="1.5" stroke-dasharray="2 3"/>
+  <line x1="280" y1="105" x2="280" y2="690" stroke="#b7eb8f" stroke-width="1.5" stroke-dasharray="2 3"/>
+  <line x1="500" y1="105" x2="500" y2="690" stroke="#ffd591" stroke-width="1.5" stroke-dasharray="2 3"/>
+  <line x1="720" y1="105" x2="720" y2="690" stroke="#d3adf7" stroke-width="1.5" stroke-dasharray="2 3"/>
+
+  <!-- 步骤节点 -->
+  <!-- 1. openai.chat -->
+  <circle cx="80" cy="130" r="14" fill="#1677ff"/>
+  <text x="80" y="134" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">1</text>
+  <text x="100" y="134" font-size="11" fill="#1f1f1f">openai.chat.completions.create()</text>
+
+  <!-- 2. TCP connect -->
+  <circle cx="80" cy="170" r="14" fill="#1677ff"/>
+  <text x="80" y="174" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">2</text>
+  <text x="100" y="174" font-size="11" fill="#1f1f1f">TCP connect(api.openai.com:443)</text>
+
+  <!-- 3. 引流匹配 -->
+  <circle cx="280" cy="210" r="14" fill="#52c41a"/>
+  <text x="280" y="214" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">3</text>
+  <text x="300" y="214" font-size="11" fill="#1f1f1f">EGW/TPROXY 命中 LLMProvider.hosts</text>
+  <line x1="94" y1="170" x2="266" y2="210" stroke="#1677ff" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- 4. SNI → PolicyService -->
+  <circle cx="500" cy="250" r="14" fill="#fa8c16"/>
+  <text x="500" y="254" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">4</text>
+  <text x="520" y="254" font-size="11" fill="#1f1f1f">从 ClientHello 取 SNI → PolicyService 查</text>
+  <line x1="294" y1="210" x2="486" y2="250" stroke="#1677ff" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- 4a. 失败分支 -->
+  <rect x="510" y="270" width="200" height="32" rx="4" fill="#fff1f0" stroke="#ffccc7"/>
+  <text x="525" y="290" font-size="10" fill="#cf1322">⚠ controller 无响应 → failureMode 降级</text>
+  <line x1="500" y1="264" x2="510" y2="270" stroke="#ff4d4f" stroke-width="1.5" stroke-dasharray="3 3"/>
+
+  <!-- 5. SNI 命中 skipTLSInspection -->
+  <circle cx="500" cy="330" r="14" fill="#fa8c16"/>
+  <text x="500" y="334" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">5</text>
+  <text x="520" y="334" font-size="11" fill="#1f1f1f">skipTLSInspection=true → A 模式直通</text>
+
+  <!-- 6. B 模式签叶子证书 -->
+  <circle cx="500" cy="370" r="14" fill="#fa8c16"/>
+  <text x="500" y="374" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">6</text>
+  <text x="520" y="374" font-size="11" fill="#1f1f1f">读 argus-ca-tls Secret → 动态签叶子证</text>
+
+  <!-- 7. 应用层协议识别 -->
+  <circle cx="500" cy="410" r="14" fill="#fa8c16"/>
+  <text x="500" y="414" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">7</text>
+  <text x="520" y="414" font-size="11" fill="#1f1f1f">HTTP/1.1 vs h2 ALPN 识别</text>
+
+  <!-- 8. Provider adapter -->
+  <circle cx="500" cy="450" r="14" fill="#fa8c16"/>
+  <text x="500" y="454" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">8</text>
+  <text x="520" y="454" font-size="11" fill="#1f1f1f">OpenAI 兼容适配 → proto:LLMRequest</text>
+
+  <!-- 9. 检测流水线 -->
+  <circle cx="500" cy="490" r="14" fill="#fa8c16"/>
+  <text x="500" y="494" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">9</text>
+  <text x="520" y="494" font-size="11" fill="#1f1f1f">流水线：rules → heuristic → encoding</text>
+
+  <!-- 10. 风险分合成 -->
+  <circle cx="500" cy="530" r="14" fill="#fa8c16"/>
+  <text x="500" y="534" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">10</text>
+  <text x="520" y="534" font-size="11" fill="#1f1f1f">合成 risk_score ∈ [0,1]</text>
+
+  <!-- 11. 策略引擎 -->
+  <circle cx="500" cy="570" r="14" fill="#fa8c16"/>
+  <text x="500" y="574" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">11</text>
+  <text x="520" y="574" font-size="11" fill="#1f1f1f">ASP.mode × ASP.failureMode → 决策</text>
+
+  <!-- 12. 上报事件 -->
+  <circle cx="720" cy="610" r="14" fill="#722ed1"/>
+  <text x="720" y="614" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">12</text>
+  <text x="740" y="614" font-size="11" fill="#1f1f1f">EventService.ReportEvents(stream)</text>
+  <line x1="514" y1="570" x2="706" y2="610" stroke="#722ed1" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- 13a. 放行路径 -->
+  <rect x="510" y="630" width="180" height="32" rx="4" fill="#f6ffed" stroke="#b7eb8f"/>
+  <text x="525" y="650" font-size="10" fill="#389e0d">✓ 放行 → 原 IP/SNI 出站 + SSE 反压</text>
+  <line x1="500" y1="584" x2="510" y2="630" stroke="#52c41a" stroke-width="1.5" marker-end="url(#arrG)"/>
+
+  <!-- 13b. 阻断路径 -->
+  <rect x="510" y="666" width="180" height="22" rx="4" fill="#fff1f0" stroke="#ffccc7"/>
+  <text x="525" y="681" font-size="10" fill="#cf1322">✗ 阻断 → HTTP 451 + final_action=BLOCK</text>
+  <line x1="500" y1="584" x2="510" y2="666" stroke="#ff4d4f" stroke-width="1.5" marker-end="url(#arrR)"/>
+
+  <!-- 图例 -->
+  <g transform="translate(20, 700)">
+    <circle cx="0" cy="0" r="6" fill="#1677ff"/><text x="12" y="4" font-size="10" fill="#595959">业务侧</text>
+    <circle cx="80" cy="0" r="6" fill="#52c41a"/><text x="92" y="4" font-size="10" fill="#595959">引流层</text>
+    <circle cx="160" cy="0" r="6" fill="#fa8c16"/><text x="172" y="4" font-size="10" fill="#595959">gateway 内部</text>
+    <circle cx="260" cy="0" r="6" fill="#722ed1"/><text x="272" y="4" font-size="10" fill="#595959">controller 接收</text>
+  </g>
+</svg>

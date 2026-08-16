@@ -1,0 +1,127 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 540" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif">
+  <defs>
+    <marker id="aBlue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1677ff"/>
+    </marker>
+    <marker id="aGreen" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#52c41a"/>
+    </marker>
+    <marker id="aPurple" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#722ed1"/>
+    </marker>
+  </defs>
+
+  <rect width="900" height="540" fill="#fafafa" rx="12"/>
+  <text x="450" y="32" text-anchor="middle" font-size="18" font-weight="700" fill="#1f1f1f">TLS 两种可见模式</text>
+  <text x="450" y="52" text-anchor="middle" font-size="11" fill="#8c8c8c">A 被动观测（fallback） · B TLS 解密检测（MVP 默认）</text>
+
+  <!-- 模式 A：被动观测 -->
+  <g transform="translate(30, 80)">
+    <rect width="400" height="440" rx="10" fill="#f6ffed" stroke="#b7eb8f" stroke-width="2"/>
+    <rect width="400" height="40" rx="10" fill="#52c41a"/>
+    <rect y="32" width="400" height="8" fill="#52c41a"/>
+    <text x="200" y="26" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">A. 被动观测（passive observation）</text>
+
+    <text x="200" y="62" text-anchor="middle" font-size="11" font-weight="600" fill="#389e0d">fallback · skipTLSInspection=true · 强合规</text>
+
+    <!-- 业务 Pod -->
+    <rect x="20" y="80" width="100" height="60" rx="6" fill="#fff" stroke="#1677ff" stroke-width="2"/>
+    <text x="70" y="105" text-anchor="middle" font-size="11" font-weight="700" fill="#1f1f1f">业务 Pod</text>
+    <text x="70" y="121" text-anchor="middle" font-size="9" fill="#595959">ClientHello</text>
+    <text x="70" y="133" text-anchor="middle" font-size="9" fill="#8c8c8c">SNI / JA3</text>
+
+    <!-- Gateway -->
+    <rect x="140" y="80" width="120" height="100" rx="6" fill="#fff" stroke="#fa8c16" stroke-width="2"/>
+    <text x="200" y="103" text-anchor="middle" font-size="11" font-weight="700" fill="#1f1f1f">gateway</text>
+    <text x="200" y="119" text-anchor="middle" font-size="9" fill="#595959">只看元数据：</text>
+    <text x="200" y="133" text-anchor="middle" font-size="9" fill="#595959">• SNI / JA3</text>
+    <text x="200" y="146" text-anchor="middle" font-size="9" fill="#595959">• TLS 版本</text>
+    <text x="200" y="159" text-anchor="middle" font-size="9" fill="#595959">• 流大小 / RTT</text>
+    <text x="200" y="172" text-anchor="middle" font-size="9" font-weight="700" fill="#cf1322">✗ 看不到 body</text>
+
+    <!-- 上游 -->
+    <rect x="280" y="80" width="100" height="60" rx="6" fill="#fff" stroke="#722ed1" stroke-width="2"/>
+    <text x="330" y="105" text-anchor="middle" font-size="11" font-weight="700" fill="#1f1f1f">LLM 厂商</text>
+    <text x="330" y="121" text-anchor="middle" font-size="9" fill="#595959">原 TLS 透传</text>
+    <text x="330" y="133" text-anchor="middle" font-size="9" fill="#8c8c8c">不解密</text>
+
+    <line x1="120" y1="110" x2="140" y2="110" stroke="#1677ff" stroke-width="1.5" marker-end="url(#aBlue)"/>
+    <line x1="260" y1="110" x2="280" y2="110" stroke="#52c41a" stroke-width="1.5" marker-end="url(#aGreen)"/>
+
+    <!-- 关键特征 -->
+    <text x="20" y="200" font-size="11" font-weight="700" fill="#1f1f1f">能看什么：</text>
+    <text x="28" y="218" font-size="10" fill="#595959">✗ HTTP body / prompt 看不到</text>
+    <text x="28" y="232" font-size="10" fill="#595959">✓ 元数据：SNI / JA3 / TLS 版本</text>
+    <text x="28" y="246" font-size="10" fill="#595959">✓ 流大小 / RTT</text>
+
+    <text x="20" y="276" font-size="11" font-weight="700" fill="#1f1f1f">适用场景：</text>
+    <text x="28" y="294" font-size="10" fill="#595959">1) 合规环境禁止中间人</text>
+    <text x="28" y="308" font-size="10" fill="#595959">2) LLMProvider.skipTLSInspection=true</text>
+    <text x="28" y="322" font-size="10" fill="#595959">3) B 模式失败降级回 A</text>
+
+    <text x="20" y="352" font-size="11" font-weight="700" fill="#1f1f1f">客户端要求：</text>
+    <text x="28" y="370" font-size="10" font-weight="700" fill="#389e0d">零（业务无感）</text>
+    <text x="28" y="386" font-size="10" fill="#8c8c8c">业务感知不到观枢存在</text>
+
+    <rect x="20" y="400" width="360" height="28" rx="4" fill="#d9f7be"/>
+    <text x="200" y="418" text-anchor="middle" font-size="11" font-weight="700" fill="#389e0d">MVP 中作为 fallback / 特例白名单</text>
+  </g>
+
+  <!-- 模式 B：TLS 解密 -->
+  <g transform="translate(470, 80)">
+    <rect width="400" height="440" rx="10" fill="#e6f4ff" stroke="#91caff" stroke-width="2"/>
+    <rect width="400" height="40" rx="10" fill="#1677ff"/>
+    <rect y="32" width="400" height="8" fill="#1677ff"/>
+    <text x="200" y="26" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">B. TLS 解密检测（MVP 默认）</text>
+
+    <text x="200" y="62" text-anchor="middle" font-size="11" font-weight="600" fill="#0958d9">tlsInspection.enabled=true · 动态签叶证</text>
+
+    <!-- 业务 Pod -->
+    <rect x="20" y="80" width="100" height="60" rx="6" fill="#fff" stroke="#1677ff" stroke-width="2"/>
+    <text x="70" y="105" text-anchor="middle" font-size="11" font-weight="700" fill="#1f1f1f">业务 Pod</text>
+    <text x="70" y="121" text-anchor="middle" font-size="9" fill="#595959">已注入 CA</text>
+    <text x="70" y="133" text-anchor="middle" font-size="9" fill="#8c8c8c">/etc/ssl/certs/argus-ca.pem</text>
+
+    <!-- gateway 终止 TLS -->
+    <rect x="140" y="80" width="120" height="100" rx="6" fill="#fff" stroke="#fa8c16" stroke-width="2"/>
+    <text x="200" y="103" text-anchor="middle" font-size="11" font-weight="700" fill="#1f1f1f">gateway</text>
+    <text x="200" y="119" text-anchor="middle" font-size="9" fill="#595959">读 argus-ca-tls</text>
+    <text x="200" y="133" text-anchor="middle" font-size="9" fill="#595959">按 SNI 签叶证</text>
+    <text x="200" y="146" text-anchor="middle" font-size="9" fill="#595959">TLS 终止在网关</text>
+    <text x="200" y="159" text-anchor="middle" font-size="9" font-weight="700" fill="#389e0d">✓ body 进流水线</text>
+    <text x="200" y="172" text-anchor="middle" font-size="9" fill="#8c8c8c">叶证 LRU 内存 1024</text>
+
+    <!-- 上游 -->
+    <rect x="280" y="80" width="100" height="60" rx="6" fill="#fff" stroke="#722ed1" stroke-width="2"/>
+    <text x="330" y="105" text-anchor="middle" font-size="11" font-weight="700" fill="#1f1f1f">LLM 厂商</text>
+    <text x="330" y="121" text-anchor="middle" font-size="9" fill="#595959">重握手</text>
+    <text x="330" y="133" text-anchor="middle" font-size="9" fill="#8c8c8c">原 SNI 出站</text>
+
+    <line x1="120" y1="110" x2="140" y2="110" stroke="#1677ff" stroke-width="1.5" marker-end="url(#aBlue)"/>
+    <line x1="260" y1="110" x2="280" y2="110" stroke="#52c41a" stroke-width="1.5" marker-end="url(#aGreen)"/>
+
+    <!-- CA 注入路径 -->
+    <line x1="70" y1="140" x2="70" y2="220" stroke="#722ed1" stroke-width="1.5" stroke-dasharray="3 3"/>
+    <line x1="70" y1="220" x2="200" y2="180" stroke="#722ed1" stroke-width="1.5" stroke-dasharray="3 3" marker-end="url(#aPurple)"/>
+    <text x="80" y="210" font-size="9" fill="#722ed1" font-weight="600">MutatingWebhook 注 CA</text>
+
+    <!-- 关键特征 -->
+    <text x="20" y="246" font-size="11" font-weight="700" fill="#1f1f1f">能看什么：</text>
+    <text x="28" y="264" font-size="10" font-weight="700" fill="#389e0d">✓ HTTP body / prompt 完整可见</text>
+    <text x="28" y="278" font-size="10" fill="#595959">  → rules → heuristic → encoding</text>
+
+    <text x="20" y="304" font-size="11" font-weight="700" fill="#1f1f1f">信任链：</text>
+    <text x="28" y="322" font-size="10" fill="#595959">1. argus-ca-tls Secret（argus ns）</text>
+    <text x="28" y="336" font-size="10" fill="#595959">2. Webhook 注 tls.crt 到 Pod</text>
+    <text x="28" y="350" font-size="10" fill="#595959">3. 设 SSL_CERT_FILE 环境变量</text>
+    <text x="28" y="364" font-size="10" fill="#595959">4. Python requests / Go / curl 都认</text>
+
+    <text x="20" y="390" font-size="11" font-weight="700" fill="#1f1f1f">客户端要求：</text>
+    <text x="28" y="408" font-size="10" font-weight="600" fill="#595959">业务 trust store 有 Argus CA 根证</text>
+    <text x="28" y="422" font-size="10" fill="#8c8c8c">（Webhook 自动注入，不算业务改造）</text>
+
+    <rect x="20" y="400" width="360" height="28" rx="4" fill="#bae0ff" style="display:none"/>
+
+    <rect x="20" y="416" width="360" height="20" rx="4" fill="#bae0ff" style="display:none"/>
+  </g>
+</svg>
