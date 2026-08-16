@@ -11,4 +11,4 @@ resources:
   - deployment-gateway.yaml
   - svc-controller.yaml
   - svc-gateway.yaml
-  - crds.yaml
+# crds.yaml 在 make crd 生成真实 CRD 后再加入 resources 列表

@@ -1,6 +1,23 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: argus
-resources: [../../base]
+resources:
+  - ../../base
+replicas:
+  - name: argus-gateway
+    count: 2
+  - name: argus-controller
+    count: 1
 patches:
-  - path: ../patches/stg-resources.yaml
+  - target:
+      kind: Deployment
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            cpu: "1"
+            memory: 1Gi
+          limits:
+            cpu: "4"
+            memory: 4Gi

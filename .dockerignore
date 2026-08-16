@@ -1,0 +1,16 @@
+.git
+.gitignore
+.trae
+.vscode
+bin/
+docs/
+k8s/
+deploy/
+terraform/
+assets/
+test/
+*.md
+*.log
+.env
+.env.*
+Makefile

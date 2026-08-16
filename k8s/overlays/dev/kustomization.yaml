@@ -1,7 +1,24 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: argus
-resources: [../../base]
+resources:
+  - ../../base
+images:
+  - name: ghcr.io/ctkqiang/argus-gateway
+    newName: argus-gateway
+    newTag: dev
+  - name: ghcr.io/ctkqiang/argus-controller
+    newName: argus-controller
+    newTag: dev
+replicas:
+  - name: argus-gateway
+    count: 1
+  - name: argus-controller
+    count: 1
 patches:
-  - path: ../patches/dev-image-tag.yaml
-  - path: ../patches/dev-single-replica.yaml
+  - target:
+      kind: Deployment
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Never
