@@ -16,6 +16,7 @@ NAV_LINKS = [
     ("pod-identity.html",     "Pod 身份"),
     ("tls-design.html",       "TLS 解密"),
     ("runmodes-failure.html", "运行模式矩阵"),
+    ("helm-values.html",      "Helm Values"),
 ]
 
 def nav_html(active: str) -> str:
@@ -50,6 +51,7 @@ TEMPLATE = """<!doctype html>
       </nav>
       <div class="header-actions">
         <a class="btn btn-default btn-sm" href="https://github.com/ctkqiang/argus" target="_blank" rel="noopener">GitHub</a>
+        <a class="btn btn-default btn-sm" href="https://gitcode.com/ctkqiang_sr/Argus" target="_blank" rel="noopener">GitCode</a>
       </div>
     </header>
     <main class="doc-content">
@@ -84,6 +86,7 @@ def md_to_html(md_path: Path) -> str:
         "pod-identity":          "Pod 身份溯源",
         "tls-design":            "TLS 解密设计",
         "runmodes-failure":      "运行模式矩阵",
+        "helm-values":           "Helm Values 配置参考",
         "README":                "文档索引",
     }
     stem = md_path.stem

@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Argus（观枢）文档中心 — Helm Values 配置参考" />
+  <title>Helm Values 配置参考 | Argus（观枢）</title>
+  <link rel="preconnect" href="https://unpkg.com" crossorigin />
+  <link rel="dns-prefetch" href="https://unpkg.com" />
+  <link rel="stylesheet" href="https://unpkg.com/antd@5.21.4/dist/reset.css" crossorigin="anonymous" referrerpolicy="no-referrer-when-downgrade" />
+  <link rel="stylesheet" href="./css/styles.css" />
+  <link rel="stylesheet" href="./css/doc-page.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="app-header">
+      <a class="app-brand" href="index.html">
+        <div class="brand-dot"></div>
+        <span>Argus（观枢）文档中心</span>
+      </a>
+      <nav class="app-nav">
+        <a class="nav-link" href="index.html">首页</a>
+<a class="nav-link" href="architecture.html">架构设计</a>
+<a class="nav-link" href="traffic-interception.html">流量引流</a>
+<a class="nav-link" href="pod-identity.html">Pod 身份</a>
+<a class="nav-link" href="tls-design.html">TLS 解密</a>
+<a class="nav-link" href="runmodes-failure.html">运行模式矩阵</a>
+<a class="nav-link active" href="helm-values.html">Helm Values</a>
+      </nav>
+      <div class="header-actions">
+        <a class="btn btn-default btn-sm" href="https://github.com/ctkqiang/argus" target="_blank" rel="noopener">GitHub</a>
+        <a class="btn btn-default btn-sm" href="https://gitcode.com/ctkqiang_sr/Argus" target="_blank" rel="noopener">GitCode</a>
+        <button class="btn btn-primary btn-sm" id="btn-download-yaml-top" type="button">
+          下载 YAML
+        </button>
+      </div>
+    </header>
+    <main class="doc-content">
+      <h1 id="helm-values">Helm Values 配置参考</h1>
+      <p>
+        本页展示 <code>deploy/helm/argus/values.yaml</code> 的默认内容，对应 Helm Chart
+        最小可渲染字段集合（spec §16）。安装前请基于副本数、镜像仓库、阈值等按需覆盖。
+      </p>
+      <div class="doc-action-bar">
+        <button class="btn btn-default" id="btn-copy-yaml" type="button" title="复制 YAML 到剪贴板">
+          复制 YAML
+        </button>
+        <button class="btn btn-primary" id="btn-download-yaml" type="button" title="下载 values.yaml">
+          下载 values.yaml
+        </button>
+        <a class="btn btn-default" href="https://github.com/ctkqiang/argus/blob/main/deploy/helm/argus/values.yaml" target="_blank" rel="noopener">
+          在 GitHub 查看
+        </a>
+        <a class="btn btn-default" href="https://gitcode.com/ctkqiang_sr/Argus" target="_blank" rel="noopener">
+          在 GitCode 查看
+        </a>
+      </div>
+      <pre><code id="yaml-source" class="language-yaml"># Argus(观枢) Helm Chart 默认 Values。
+# 覆盖 spec §16 声明的最小可渲染字段集合；完整注释版后续补充。
+
+# gateway: Argus-Gateway 出向安全网关配置
+gateway:
+  replicas: 2
+  image:
+    repository: ghcr.io/ctkqiang/argus-gateway
+    tag: v0.1.0
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: &quot;500m&quot;
+      memory: &quot;512Mi&quot;
+    limits:
+      cpu: &quot;2000m&quot;
+      memory: &quot;2Gi&quot;
+  service:
+    type: ClusterIP
+    port: 8443
+  hpa:
+    enabled: true
+    min: 2
+    max: 10
+    targetCPU: 70
+
+# controller: Argus-Controller 策略与事件控制器配置
+controller:
+  replicas: 1
+  image:
+    repository: ghcr.io/ctkqiang/argus-controller
+    tag: v0.1.0
+    pullPolicy: IfNotPresent
+  leaderElection:
+    enabled: true
+  service:
+    type: ClusterIP
+    port: 8444
+  resources:
+    requests:
+      cpu: &quot;250m&quot;
+      memory: &quot;256Mi&quot;
+    limits:
+      cpu: &quot;1000m&quot;
+      memory: &quot;1Gi&quot;
+
+# runMode: 全局默认运行模式与失败模式
+runMode:
+  default: enforce
+  defaultFailureMode: fail-open
+
+# thresholds: 安全判定阈值（score ∈ [0,1]）
+thresholds:
+  blockScore: 0.8
+  logScore: 0.3
+
+# trafficInterceptor: 流量引流引擎（cilium 或 iptables）
+trafficInterceptor:
+  engine: cilium
+
+# tlsInspection: TLS 流量检查配置
+tlsInspection:
+  enabled: true
+  ca:
+    generate: true
+
+# prometheus: Prometheus ServiceMonitor 与指标暴露开关
+prometheus:
+  enabled: true
+
+# crds: 是否随 Helm 安装 CRD
+crds:
+  install: true
+</code></pre>
+    </main>
+    <footer class="app-footer">
+      <div class="footer-row">
+        <span>Made with care by 哪吒网络安全 - Argus 核心团队</span>
+        <span class="divider">|</span>
+        <span>License: Apache-2.0</span>
+      </div>
+    </footer>
+  </div>
+
+  <!-- Toast 通知容器（与 index.html 保持一致） -->
+  <div id="toast" class="toast"></div>
+
+  <!-- 纯 JS 交互（无框架） -->
+  <script src="./js/app.js" defer></script>
+  <script>
+    /* helm-values.html 专有交互：
+     *   1) 复制 YAML：从 <pre><code> 读取 textContent 写入剪贴板
+     *   2) 下载 YAML：用 Blob + a[download] 触发本地下载，避免 ../ 跨目录 404
+     * 依赖：app.js 的 #toast 元素 + showToast 风格的类切换
+     */
+    (function () {
+      'use strict';
+
+      function showToast(msg) {
+        var el = document.getElementById('toast');
+        if (!el) { return; }
+        el.textContent = msg;
+        el.classList.add('show');
+        setTimeout(function () { el.classList.remove('show'); }, 2000);
+      }
+
+      function fallbackCopy(text) {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand('copy'); showToast('已复制 values.yaml 到剪贴板'); }
+        catch (_) { showToast('复制失败，请手动选择复制'); }
+        document.body.removeChild(ta);
+      }
+
+      function copyYaml(text) {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(function () {
+            showToast('已复制 values.yaml 到剪贴板');
+          }).catch(function () { fallbackCopy(text); });
+        } else { fallbackCopy(text); }
+      }
+
+      function downloadYaml(text) {
+        var blob = new Blob([text], { type: 'text/yaml;charset=utf-8' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'values.yaml';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast('已开始下载 values.yaml');
+      }
+
+      function init() {
+        var code = document.getElementById('yaml-source');
+        if (!code) { return; }
+        var text = code.textContent;
+        var btnCopy = document.getElementById('btn-copy-yaml');
+        var btnDl = document.getElementById('btn-download-yaml');
+        var btnDlTop = document.getElementById('btn-download-yaml-top');
+        if (btnCopy) {
+          btnCopy.addEventListener('click', function () { copyYaml(text); });
+        }
+        if (btnDl) {
+          btnDl.addEventListener('click', function () { downloadYaml(text); });
+        }
+        if (btnDlTop) {
+          btnDlTop.addEventListener('click', function () { downloadYaml(text); });
+        }
+      }
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+      } else { init(); }
+    })();
+  </script>
+</body>
+</html>
