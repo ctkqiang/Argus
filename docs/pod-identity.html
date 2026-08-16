@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Argus（观枢）文档中心 — Pod 身份溯源" />
+  <title>Pod 身份溯源 | Argus（观枢）</title>
+  <link rel="preconnect" href="https://unpkg.com" crossorigin />
+  <link rel="dns-prefetch" href="https://unpkg.com" />
+  <link rel="stylesheet" href="https://unpkg.com/antd@5.21.4/dist/reset.css" crossorigin="anonymous" referrerpolicy="no-referrer-when-downgrade" />
+  <link rel="stylesheet" href="./css/styles.css" />
+  <link rel="stylesheet" href="./css/doc-page.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="app-header">
+      <a class="app-brand" href="index.html">
+        <div class="brand-dot"></div>
+        <span>Argus（观枢）文档中心</span>
+      </a>
+      <nav class="app-nav">
+        <a class="nav-link" href="index.html">首页</a>
+<a class="nav-link" href="architecture.html">架构设计</a>
+<a class="nav-link" href="traffic-interception.html">流量引流</a>
+<a class="nav-link active" href="pod-identity.html">Pod 身份</a>
+<a class="nav-link" href="tls-design.html">TLS 解密</a>
+<a class="nav-link" href="runmodes-failure.html">运行模式矩阵</a>
+      </nav>
+      <div class="header-actions">
+        <a class="btn btn-default btn-sm" href="https://github.com/ctkqiang/argus" target="_blank" rel="noopener">GitHub</a>
+      </div>
+    </header>
+    <main class="doc-content">
+      <h1 id="pod-identitymd">pod-identity.md — 身份溯源链路 &amp; 准确性矩阵</h1>
+<h2 id="1">1. 目标</h2>
+<p>gateway 里 <strong>看不到</strong> 业务 Pod 的 netns / 进程 / k8s 资源（checklist C2、§7 gateway Pod 零 RBAC）。<br />
+所以溯源链路必须是：</p>
+<pre><code class="language-mermaid">flowchart LR
+  GW[&quot;argus-gateway（无 k8s 权限）&quot;]
+  CT[&quot;argus-controller（有 pods/list/watch 权限）&quot;]
+  GW -- &quot;PodIdentityService.Lookup(src_ip, src_port, src_time_epoch_ms, dst_ip, dst_port)&quot; --&gt; CT
+  CT -- &quot;返回 { pod_id, pod_name, ns, owner_kind, owner_name, workload_uid, workload_labels, service_account, node_name, confidence }&quot; --&gt; GW
+  GW -- &quot;把这 8 个字段 + 原始 5 元组写进 AIEvent.pod_identity&quot; --&gt; EV[&quot;AIEvent 落盘/上报&quot;]
+</code></pre>
+<p>语义：<strong>gateway 自己绝不推测身份</strong>；controller 是唯一真源。controller 返回 <code>confidence &lt; 1.0</code> 时，<br />
+gateway 必须原样把 <code>confidence</code> 填进事件，不能擅自补。</p>
+<h2 id="2-controller-reviewer">2. controller 侧溯源算法（步骤写清楚，将来 reviewer 对代码）</h2>
+<p>给定 <code>{src_ip, src_port, at_time_ms}</code>：<br />
+1. 拿 <code>IP -&gt; pod</code> 先从 informer cache 查：<br />
+   - <code>pod.status.podIP == src_ip</code>：候选候选 1（普通 Pod 正常路径）。<br />
+   - <code>pod.status.hostIP == src_ip and pod.spec.hostNetwork=true</code>：候选 2（hostNetwork 路径）。<br />
+2. 如果候选唯一，再用 <code>at_time_ms ∈ [pod.status.startTime, pod.status.phase==Running?∞:now or deletionTimestamp]</code> 做时间窗口校验。<br />
+3. 如果候选 1 不唯一（hostPort / 同一个 node 上多个 hostNet pod 同时用 src_port 冲突这种极端情况），再看 node 上的 conntrack 来源？<br />
+<strong>不，controller 不读节点 conntrack（MVP 阶段一就别碰节点特权）</strong>；这种场景直接返回 <code>confidence=0.6</code>，并在 <code>failure_reason</code> 写 <code>host_network_src_collision</code>，让审计阶段人工看。<br />
+4. 对"已经退出的 Pod"（informer cache 已经不持有）：controller 自己维护一个 24h ring buffer（内存里），<br />
+   key=pod_id + deletion_timestamp；如果 buffer 里也找不到，返回 <code>confidence=0.1</code> + <code>failure_reason=pod_gc_already</code>，告诉下游"我找不到了，这事件只能定位到 node 级"。<br />
+5. SNAT 场景（src_ip 不是 podIP，而是 node SNAT 后的）：返回 <code>confidence=0.2</code>，只能定位到节点，不能定位到具体 Pod；<br />
+   文档里<strong>显式写明</strong>：SNAT 是身份溯源天然弱点，要么关出向 SNAT，要么加节点级溯源 agent（MVP 阶段一不做）。</p>
+<h2 id="3-5">3. 准确性矩阵（5 场景 × 维度）</h2>
+<p>每一行对应 checklist §3 <code>docs/pod-identity.md</code> 要求的"准确性矩阵"。</p>
+<table>
+<thead>
+<tr>
+<th>场景</th>
+<th>pod_id 命中</th>
+<th>namespace 命中</th>
+<th>workload 命中</th>
+<th>serviceAccount 命中</th>
+<th>confidence</th>
+<th>failure_reason 可能值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1. 普通 Pod（非 hostNet，非 SNAT，未退出）</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+<td>1.0</td>
+<td>空</td>
+</tr>
+<tr>
+<td>2. hostNetwork=true 的业务 Pod（出向用 hostIP）</td>
+<td>⚠️ 依赖 cache 中同一节点唯一候选</td>
+<td>✅</td>
+<td>⚠️ hostPort 冲突时不准</td>
+<td>✅</td>
+<td>0.6（冲突时）/1.0（唯一时）</td>
+<td>host_network_src_collision</td>
+</tr>
+<tr>
+<td>3. Pod 已退出（informer 已清，≤24h）</td>
+<td>✅（ring buffer）</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅（buffer 留）</td>
+<td>0.9</td>
+<td>空（命中） / pod_gc_already</td>
+</tr>
+<tr>
+<td>4. Pod 内多容器（init / sidecar / app 多个进程）</td>
+<td>✅（只能定位到 Pod）</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+<td>0.95</td>
+<td><code>multi_container_unresolved_container</code>（仅 MVP 阶段一不精确到容器级时写）</td>
+</tr>
+<tr>
+<td>5. 出向 SNAT 场景（src_ip = node IP 而非 podIP）</td>
+<td>❌</td>
+<td>❌</td>
+<td>❌</td>
+<td>❌</td>
+<td>0.2</td>
+<td>egress_snat_lost_identity</td>
+</tr>
+</tbody>
+</table>
+<h2 id="4">4. 两种降级不犯错</h2>
+<ul>
+<li>溯源拿不到身份时：<strong>按 <code>failureMode</code> 继续放行/阻断，别把 HTTP 请求挂死</strong>，只把事件 <code>confidence</code> 如实写下来。</li>
+<li>业务在升级 / Pod 在 rolling（create/delete 抖动）：用 <code>at_time_ms</code> 时间窗口做一次重试（最多 2 次 lookup RPC），不要一上来就报 <code>pod_gc_already</code>。</li>
+</ul>
+    </main>
+    <footer class="app-footer">
+      <div class="footer-row">
+        <span>Made with care by 哪吒网络安全 - Argus 核心团队</span>
+        <span class="divider">|</span>
+        <span>License: Apache-2.0</span>
+      </div>
+    </footer>
+  </div>
+</body>
+</html>

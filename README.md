@@ -1,212 +1,288 @@
-# Argus (观枢)
+# Argus（观枢）
 
-Kubernetes 原生的 LLM 出站流量安全网关。业务 Pod 零改造，集群级透明引流，对大模型出口请求做 Prompt 提取 / 多检测器流水线 / 风险打分 / 放行或阻断，最后把 AIEvent 归档。
+Kubernetes 原生 LLM 出站流量安全网关。
 
-当前是 **阶段一 1-A 完成版**：项目骨架、5 份 gRPC proto、CRD Go 类型、构建脚本、Helm Chart 骨架、README 全在。阶段一 B/C/D（真实业务逻辑、端到端、性能基线）还没写，代码里对应的子包先留了 `doc.go` 占位。
+业务 Pod 不改一行代码，集群级透明引流，拦截所有发往大模型厂商的出口请求。对 Prompt 做提取、多检测器流水线、风险打分、放行或阻断，事件归档成 AIEvent。
 
-## 做什么 / 不做什么
+当前进度：**阶段一 1-A**（项目骨架）。gRPC 契约、CRD 类型、构建链路、K8s 部署、一键开发环境都在。业务逻辑（1-B/C/D）还没写，子包里先放了 `doc.go` 占位。
 
-**做**：
-- 集群级透明拦截所有向 LLM 厂商发的请求（Cilium eBPF 或 iptables TPROXY）
-- 识别是不是 LLM 流量；非 LLM 流量直接透传，不蹭任何额外延迟
-- 对 Prompt 跑 rules / heuristic / encoding / semantic 四段流水线，返回 risk_score
-- 按 `ArgusSecurityPolicy` 选 allow / block / degraded，支持 monitor 和 enforce 两种模式
-- 把事件流式上报回 controller，落盘成 JSONL（at-least-once）
-- 身份解析靠 controller（gateway Pod 自己不抓 k8s 权限）
+---
 
-**不做（阶段一明确不做）**：
-- 多厂商 adapter 以外的真实逻辑（只保留 OpenAI 兼容骨架）
-- 语义检测器接外部 LLM（预留接口，返回 unimplemented）
-- 可视化面板、C++ 高性能检测器、多集群联邦、对象存储 / SIEM 直写
+## 做什么
 
-## 目录
+- 集群级透明拦截所有向 LLM 厂商发的 HTTPS 请求（Cilium eBPF / iptables TPROXY）
+- 非 LLM 流量直接透传，零额外延迟
+- Prompt 过四段检测流水线：rules → heuristic → encoding → semantic，输出 risk_score
+- 按 `ArgusSecurityPolicy` CRD 决策 allow / block / degraded，支持 monitor 和 enforce 模式
+- 事件流式上报 controller，落盘 JSONL（at-least-once）
+- Pod 身份解析走 controller，gateway 不碰 k8s 权限
+
+## 不做（阶段一）
+
+- 多厂商 adapter 真实逻辑（只有 OpenAI 兼容骨架）
+- 语义检测器接外部 LLM（接口预留，返回 unimplemented）
+- 可视化面板、C++ 检测器、多集群联邦、对象存储 / SIEM 直写
+
+---
+
+## 目录结构
 
 ```
-cmd/
-├── argus-gateway/        # 入口：装配依赖 → Run(ctx) → 信号退出
-└── argus-controller/     # 同上
-
-internal/
-├── utilities/            # slog logger（纯标准库，所有人都能用）
-├── config/               # viper + 环境变量 + 默认值
-├── detector/
-│   ├── rules/            # 正则 + 关键词
-│   ├── heuristic/        # 熵 / 字符异常 / 引号不平衡等结构特征
-│   ├── encoding/         # Base64 / Hex / Unicode 转义还原后再回灌检测
-│   └── semantic/         # 预留接口，真实接入另做
-├── gateway/              # 数据平面。禁止依赖 internal/controller
-│   ├── server tls proxy protocol prompt adapter pipeline risk policy identity metrics event
-├── controller/           # 控制平面。禁止依赖 internal/gateway
-│   ├── policy identity health event metrics
-
-pkg/                      # 对外稳定公共库。写之前先在 tasks.md 登记
-├── apierrors signal logger tracing
-
-api/argus/v1alpha1        # CRD Go 类型 + GVK + DeepCopy 最小实现
-proto/argus/              # 5 份 gRPC 契约
-pkg/pb/argus/*/v1alpha1   # protobuf / gRPC 生成桩
-deploy/helm/argus         # Helm Chart 骨架（values.yaml + Chart.yaml，模板 placeholder）
-scripts/                  # gen-proto.sh / fix-proto-imports.sh
-test/{unit,integration,e2e}
+argus/
+├── api/argus/v1alpha1/           CRD Go 类型 + DeepCopy
+├── cmd/
+│   ├── argus-gateway/            数据平面入口（/healthz /readyz + 信号退出）
+│   └── argus-controller/         控制平面入口
+├── configs/                      配置样例
+├── deploy/
+│   ├── examples/                 LLMProvider / ArgusSecurityPolicy 样例
+│   └── helm/argus/               Helm Chart
+├── docs/                         设计文档 + 文档站（React + Ant Design）
+├── internal/
+│   ├── config/                   配置加载（viper + env + 默认值）
+│   ├── detector/{rules,heuristic,encoding,semantic}/
+│   ├── gateway/{server,tls,proxy,protocol,prompt,adapter,pipeline,risk,policy,identity,metrics,event}/
+│   ├── controller/{policy,identity,health,event,metrics}/
+│   └── utilities/                slog 日志（纯标准库）
+├── k8s/                          Kustomize base + dev/stg/prod overlays
+├── pkg/
+│   ├── pb/argus/*/v1alpha1/      protobuf + gRPC 生成桩
+│   └── {apierrors,signal,logger,tracing}/
+├── proto/argus/                  5 份 gRPC 契约源文件
+├── scripts/                      构建 / 开发环境脚本
+├── terraform/                    AWS EKS / GCP GKE / Azure AKS 模块
+├── Dockerfile                    多阶段构建 → distroless
+├── Makefile                      所有构建目标
+└── README.md
 ```
 
-## 装工具链
+---
 
-Go ≥ 1.22，K8s ≥ 1.27，Helm ≥ 3.10。
+## 环境要求
+
+- Go >= 1.22
+- Kubernetes >= 1.27
+- Helm >= 3.10
+- Docker Desktop（开发环境）
+- kubectl + minikube（开发环境）
 
 ```bash
-# Go 格式化 / 静态检查
+# 工具链
 go install golang.org/x/tools/cmd/goimports@latest
 go install honnef.co/go/tools/cmd/staticcheck@latest
-
-# Proto
 go install github.com/bufbuild/buf/cmd/buf@latest
 go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
 go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
-
-# CRD YAML / DeepCopy
 go install sigs.k8s.io/controller-tools/cmd/controller-gen@latest
 ```
 
-提交前必跑：
+---
+
+## 快速开始
+
+### 一键开发环境
+
+装好 Docker、kubectl、minikube，然后：
 
 ```bash
-make fmt      # gofmt -s -w .  && goimports -w .
-make lint     # go vet ./...   && staticcheck ./...
-make test     # go test -race -cover ./...   普通包 ≥70%，detector ≥90%
-make build    # bin/argus-gateway + bin/argus-controller
+make run
 ```
 
-## 生成依赖
+脚本会自动检测 Docker 可用资源（CPU / 内存），按安全余量分配给 Minikube，不会因为内存超限炸掉。启动完成后打印访问地址：
+
+```
+Gateway Proxy:      https://localhost:8443
+Gateway Metrics:    http://localhost:19090/metrics
+Gateway Health:     http://localhost:19090/healthz
+Controller gRPC:    localhost:18444
+Controller Metrics: http://localhost:19091/metrics
+```
+
+日常操作：
 
 ```bash
-make proto   # 产物: pkg/pb/argus/{policy,detection,event,health,identity}/v1alpha1/*.{pb.go,_grpc.pb.go}
-make crd     # 产物: deploy/helm/argus/templates/crds/*.yaml  +  api/argus/v1alpha1/zz_generated.deepcopy.go
+make dev-status     # Pod / Service 状态
+make dev-logs       # 实时日志
+make dev-rebuild    # 改了代码，重新构建 + 滚动更新
+make kill           # 停止环境，保留集群数据（下次 make run 秒恢复）
+make dev-down       # 彻底删除集群
 ```
 
-常见坑：IDE 给 `import "argus/detection.proto"` 报红但命令行 `make proto` 是绿的。这是 IDE 的 proto import root 没指到 `proto/` 目录，直接跑：
+手动覆盖资源：
 
 ```bash
-bash scripts/fix-proto-imports.sh
+ARGUS_CPUS=2 ARGUS_MEMORY=1536 make run
 ```
 
-脚本会跑 `buf build / buf lint / protoc` 四条校验，最后附 VSCode / GoLand 的手动配置步骤。
+### 本地直接跑（不依赖 K8s）
+
+```bash
+make run-gateway
+make run-controller
+```
+
+---
+
+## 构建
+
+```bash
+make build    # 产物：bin/argus-gateway + bin/argus-controller
+```
+
+Docker 镜像（多阶段构建，distroless 运行时，无 shell 无包管理器）：
+
+```bash
+docker build --target gateway    -t argus-gateway:dev    .
+docker build --target controller -t argus-controller:dev .
+```
+
+| 镜像 | 基础镜像 | 端口 | 用户 |
+|---|---|---|---|
+| argus-gateway | distroless/static:nonroot | 8443 / 9090 | nonroot |
+| argus-controller | distroless/static:nonroot | 8444 / 9090 | nonroot |
+
+---
+
+## K8s 部署
+
+```bash
+kubectl apply -k k8s/overlays/dev     # 开发
+kubectl apply -k k8s/overlays/prod    # 生产（多副本）
+```
+
+| overlay | 说明 |
+|---|---|
+| dev | 单副本，本地镜像，imagePullPolicy: Never |
+| stg | 资源限制（1C/1Gi ~ 4C/4Gi） |
+| prod | gateway x3, controller x2 |
+
+---
+
+## 代码生成
+
+```bash
+make proto    # buf generate → pkg/pb/argus/*/v1alpha1/*.pb.go
+make crd      # controller-gen → CRD YAML + DeepCopy
+```
+
+---
+
+## 提交前
+
+```bash
+make all      # fmt → lint → test → build
+```
+
+或者分步：
+
+```bash
+make fmt      # gofmt + goimports
+make lint     # go vet + staticcheck
+make test     # go test -race -cover（普通包 ≥ 70%，detector ≥ 90%）
+```
+
+---
+
+## 健康检查
+
+gateway 和 controller 都暴露：
+
+| 路径 | 用途 |
+|---|---|
+| `/healthz` | Liveness Probe，返回 200 |
+| `/readyz` | Readiness Probe，返回 200 |
+
+---
 
 ## 样例
 
-OpenAI Provider + 默认策略（作用于 default 命名空间，semantic 关闭）：
-
-```yaml
-# deploy/examples/openai-provider.yaml
-apiVersion: argus.cncf/v1alpha1
-kind: LLMProvider
-metadata:
-  name: openai
-spec:
-  type: openai
-  hosts: ["api.openai.com"]
-  sni:   ["api.openai.com"]
-  upstream:
-    base_url: "https://api.openai.com/v1"
-    auth_secret_ref:
-      name: "openai-api-key"
-      key:  "api_key"
-  models: ["gpt-4o", "gpt-4o-mini", "gpt-3.5-turbo"]
----
-# deploy/examples/default-policy.yaml
-apiVersion: argus.cncf/v1alpha1
-kind: ArgusSecurityPolicy
-metadata:
-  name: default-policy
-spec:
-  providers: [{ name: openai }]
-  detectors:
-    rules:     { enabled: true }
-    heuristic: { enabled: true }
-    encoding:  { enabled: true }
-    semantic:  { enabled: false }
-  thresholds:
-    risk: { low: 0.3, medium: 0.6, high: 0.85 }
-  scope:
-    namespaces: ["default"]
-```
-
 ```bash
 kubectl create secret generic openai-api-key --from-literal=api_key='sk-xxxx'
-kubectl apply -f deploy/examples/openai-provider.yaml
-kubectl apply -f deploy/examples/default-policy.yaml
-kubectl get llmproviders.argus.cncf -o wide
-kubectl get argussecuritypolicies.argus.cncf -o yaml | grep -A5 thresholds
+kubectl apply -f deploy/examples/llmprovider-openai.yaml
+kubectl apply -f deploy/examples/argussecuritypolicy-default.yaml
 ```
+
+---
 
 ## 故障排查
 
-**现象 1：`Import 'argus/detection.proto' was not found or had errors`（IDE 红）**
+**IDE 报 `Import "argus/detection.proto" was not found`，但 `make proto` 是绿的**
+
+IDE 的 proto import root 没指到 `proto/` 目录。跑：
 
 ```bash
 bash scripts/fix-proto-imports.sh
 ```
 
-脚本过了 IDE 还红 → 在 IDE 里把 proto include root 设成 `<project>/proto`。
+跑完还红 → IDE 里手动把 proto include root 设成 `<project>/proto`。
 
-**现象 2：go build 报 `no required module provides package .../pkg/pb/...`**
+**`go build` 报 `no required module provides package .../pkg/pb/...`**
 
 ```bash
 make proto && go mod tidy && go build ./...
 ```
 
-**现象 3：`no kind "ArgusSecurityPolicy" is registered`**
+**`make run` 报 Minikube 内存不够**
+
+脚本已经会自动适配。如果还是不行，手动指定：
 
 ```bash
-make crd
-helm upgrade argus ./deploy/helm/argus
-kubectl api-resources | grep argus
+ARGUS_MEMORY=1536 make run
 ```
 
-**现象 4：gateway 起不来，说 `/tls/tls.crt: no such file or directory`**
+或者直接：
 
-开发环境：把 Helm values 里 `gateway.tls.autoGenerate=true` 打开，Chart 自己签一张自签。
-生产：`kubectl -n argus get certificates,certificaterequests,orders,challenges` 看 cert-manager 签发到哪一步。
-
-**现象 5：`argus_event_pending_events` 一直涨**
-
-先看 controller 盘满没：
 ```bash
-kubectl -n argus exec deploy/argus-controller -- df -h /var/lib/argus
-kubectl -n argus logs deploy/argus-controller -c controller | grep -iE 'event|rpc'
+minikube start -p argus-dev --cpus=2 --memory=1536
 ```
 
-事件至少一次投递不丢，堆积通常是 controller 写盘太慢。
+---
 
-**现象 6：rule 命中了但没 block**
+## Makefile 目标一览
 
-看 policy 阈值和真实 detector_score：
-```bash
-kubectl get argussecuritypolicies default-policy -o yaml | grep -A5 thresholds
-# Prometheus: argus_gateway_detector_score{detector="rules"}
-```
-
-## Makefile 目标
-
-| 目标 | 说 明 |
+| 目标 | 说明 |
 |---|---|
-| `make all` | fmt → lint → test → build（提 PR 前跑这个） |
-| `make help` | 列全部目标 |
-| `make fmt lint test build` | 4 个核心门禁 |
-| `make proto / crd` | 重新生成桩 / CRD YAML |
-| `make tidy / clean` | 整理依赖 / 删 bin pkg/pb |
+| `make run` | 一键 Minikube 开发环境 |
+| `make kill` | 停止环境，保留数据 |
+| `make dev-down` | 删除集群 |
+| `make dev-status` | Pod / Service 状态 |
+| `make dev-logs` | 实时日志 |
+| `make dev-rebuild` | 重新构建 + 滚动更新 |
+| `make run-gateway` | 本地 go run gateway |
+| `make run-controller` | 本地 go run controller |
+| `make all` | fmt → lint → test → build |
+| `make fmt` | 格式化 |
+| `make lint` | 静态检查 |
+| `make test` | 单元测试 |
+| `make build` | 编译二进制 |
+| `make proto` | 生成 protobuf 桩 |
+| `make crd` | 生成 CRD YAML |
+| `make tidy` | go mod tidy |
+| `make clean` | 清理 bin/ |
 
-## 文档索引
+---
 
-- 代码强制规范：`.trae/rules/go-coding-standards.md`
-- 产品设计：`.trae/specs/argus-guanshu/spec.md`
+## 设计文档
+
+| 文档 | 内容 |
+|---|---|
+| [architecture.md](docs/architecture.md) | 逻辑拓扑 + 报文流转 13 步 |
+| [traffic-interception.md](docs/traffic-interception.md) | 4 种透明引流方案对比 |
+| [pod-identity.md](docs/pod-identity.md) | 身份溯源 + 5 场景准确性矩阵 |
+| [tls-design.md](docs/tls-design.md) | TLS 解密 + CA 信任 + 降级表 |
+| [runmodes-failure.md](docs/runmodes-failure.md) | monitor/enforce × fail-open/closed 矩阵 |
+
+文档站本地预览：
+
+```bash
+python3 -m http.server 8080 -d docs/
+```
+
+---
+
+## 内部文档
+
+- 代码规范：`.trae/rules/go-coding-standards.md`
+- 产品 Spec：`.trae/specs/argus-guanshu/spec.md`
 - 任务拆解：`.trae/specs/argus-guanshu/tasks.md`
 - 验收清单：`.trae/specs/argus-guanshu/checklist.md`
-
-## 测试
-
-```bash
-go test -race -cover ./...
-```
-
-覆盖率硬门槛（Code Review 不打商量）：普通包 ≥ 70%，`internal/detector/*` ≥ 90%。阶段一 1-A 还没写业务，所以现在是 `[no test files]`，正常。

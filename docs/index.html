@@ -3,74 +3,463 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="description" content="Argus（观枢）文档中心 —— Kubernetes 原生 AI 出口安全网关：透明引流、检测流水线、统一审计事件、TLS 解密与 CA 管理。" />
+  <meta name="description" content="Argus（观枢）文档中心 -- Kubernetes 原生 AI 出口安全网关" />
   <meta name="theme-color" content="#1677ff" />
-  <title>Argus（观枢）文档中心 | Ant Design 样式</title>
+  <title>Argus（观枢）文档中心</title>
 
-  <!-- 1) 自定义 Argus 主题样式（本地 css/styles.css，离线也能有基础观感） -->
-  <link rel="stylesheet" href="./css/styles.css" />
-
-  <!-- 2) antd 官方文档『浏览器引入』节明确要求的 reset.css，
-       使用官方推荐 CDN：优先 unpkg，失败后由 loader 切 jsdelivr 作为 fallback -->
+  <!-- Ant Design reset.css（仅样式重置，不含 JS 框架） -->
   <link rel="preconnect" href="https://unpkg.com" crossorigin />
-  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
   <link rel="dns-prefetch" href="https://unpkg.com" />
-  <link rel="dns-prefetch" href="https://cdn.jsdelivr.net" />
+  <link rel="stylesheet" href="https://unpkg.com/antd@5.21.4/dist/reset.css" crossorigin="anonymous" referrerpolicy="no-referrer-when-downgrade" />
 
-    <!-- Argus Docs CDN 资源预加载声明：顺序与 docs/js/vendor/cdn-loader.js / resource-manifest.json 一致 -->
-  <link rel="preload" as="style" crossorigin="anonymous" href="https://unpkg.com/antd@5.21.4/dist/reset.css" integrity="sha384-Rh5FRX7P6eIAOLQJXihyUaEa7SElWzcO7ZQk3pb6YhVJVfBq1m7QAZXxSy+lIAuJ" />
-  <link rel="preload" as="script" crossorigin="anonymous" href="https://unpkg.com/react@18.3.1/umd/react.production.min.js" integrity="sha384-DGyLxAyjq0f9SPpVevD6IgztCFlnMF6oW/XQGmfe+IsZ8TqEiDrcHkMLKI6fiB/Z" />
-  <link rel="preload" as="script" crossorigin="anonymous" href="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" integrity="sha384-gTGxhz21lVGYNMcdJOyq01Edg0jhn/c22nsx0kyqP0TxaV5WVdsSH1fSDUf5YJj1" />
-  <link rel="preload" as="script" crossorigin="anonymous" href="https://unpkg.com/dayjs@1.11.13/dayjs.min.js" integrity="sha384-DpVxUeeBWjUvUV1czyIHJAjh+jYUZFu2lLakbdua5vbwOrBGi1UgaKCHjTC+x3Ky" />
-  <link rel="preload" as="script" crossorigin="anonymous" href="https://unpkg.com/dayjs@1.11.13/locale/zh-cn.js" integrity="sha384-JlOvD9rwLmKdB9EoDKPPtxT02Btalz7oisrWI0tS0cwjMnTvZB9ww5BpcPAnhn+a" />
-  <link rel="preload" as="script" crossorigin="anonymous" href="https://unpkg.com/@ant-design/icons@5.6.1/dist/index.umd.min.js" integrity="sha384-0EWwEDsIH8NINq/z7KdxJDjeP9rCWPurEK0BZnkfhKH9WQGpC8FPbOY0mDyOS2WU" />
-  <link rel="preload" as="script" crossorigin="anonymous" href="https://unpkg.com/antd@5.21.4/dist/antd.min.js" integrity="sha384-aHcvD9lceo5OXgnbAcHp2RPWwCT3dsRbgapm0ASvhDyAYspgj1NC5k/NNUEsAT6v" />
-  <link rel="stylesheet" href="https://unpkg.com/antd@5.21.4/dist/reset.css" integrity="sha384-Rh5FRX7P6eIAOLQJXihyUaEa7SElWzcO7ZQk3pb6YhVJVfBq1m7QAZXxSy+lIAuJ" crossorigin="anonymous" referrerpolicy="no-referrer-when-downgrade" />
+  <!-- 自定义主题样式 -->
+  <link rel="stylesheet" href="./css/styles.css" />
 </head>
 <body>
-  <div id="root"></div>
+  <div class="app-shell">
 
-  <!-- CDN loader（统一维护资源、版本、自动 unpkg → jsdelivr fallback） -->
-  <script src="./js/vendor/cdn-loader.js" defer></script>
+    <!-- ====== Header ====== -->
+    <header class="app-header">
+      <div class="app-brand">
+        <div class="brand-dot"></div>
+        <span>Argus（观枢）文档中心</span>
+      </div>
+      <nav class="app-nav">
+        <a class="nav-link" href="architecture.html">架构设计</a>
+        <a class="nav-link" href="traffic-interception.html">流量引流</a>
+        <a class="nav-link" href="pod-identity.html">Pod 身份</a>
+        <a class="nav-link" href="tls-design.html">TLS 解密</a>
+        <a class="nav-link" href="runmodes-failure.html">运行模式矩阵</a>
+        <a class="nav-link" href="../deploy/helm/argus/values.yaml">Helm Values</a>
+      </nav>
+      <div class="header-actions">
+        <a class="btn btn-default btn-sm" href="https://github.com/ctkqiang/argus" target="_blank" rel="noopener">
+          GitHub
+        </a>
+        <a class="btn btn-primary btn-sm" href="../deploy/helm/argus/Chart.yaml" download>
+          Helm Chart
+        </a>
+      </div>
+    </header>
 
-  <!-- 业务逻辑（等 loader ready 后 mount） -->
+    <!-- ====== Hero ====== -->
+    <section class="hero">
+      <div class="hero-inner">
+        <div class="pill">
+          <span class="pill-dot"></span>
+          Kubernetes 原生 AI 出口安全网关
+        </div>
+        <h1>为你的大模型出向流量，<span class="gradient-text">做一次专业的安全观枢</span></h1>
+        <p class="lead">
+          以零业务改造的透明出口引流方式，把集群里所有 LLM 出站请求统一过检测流水线、统一记审计事件、
+          统一做 TLS 可视性与 CA 信任管理。业务 Pod 不装 sidecar、不改 SDK、不改 BASE_URL。
+        </p>
+        <div class="hero-actions">
+          <a class="btn btn-primary btn-lg" href="architecture.html">先看架构设计</a>
+          <button class="btn btn-default btn-lg" data-copy="make run">一键 make run</button>
+          <a class="btn btn-default btn-lg" href="../deploy/helm/argus/values.yaml" download>下载 values.yaml</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====== Content ====== -->
+    <main class="content">
+
+      <!-- KPI -->
+      <div class="kpi-grid">
+        <div class="kpi-card" title="policy / detection / event / health / identity 五类 proto 服务">
+          <div class="kpi-icon" style="--c:#1677ff">API</div>
+          <div class="kpi-body">
+            <div class="kpi-label">gRPC 契约数</div>
+            <div class="kpi-value">5</div>
+          </div>
+        </div>
+        <div class="kpi-card" title="ArgusSecurityPolicy + LLMProvider 两类 CRD">
+          <div class="kpi-icon" style="--c:#722ed1">CRD</div>
+          <div class="kpi-body">
+            <div class="kpi-label">K8s CRD 数</div>
+            <div class="kpi-value">2</div>
+          </div>
+        </div>
+        <div class="kpi-card" title="Cilium eBPF / iptables TPROXY">
+          <div class="kpi-icon" style="--c:#fa8c16">2+</div>
+          <div class="kpi-body">
+            <div class="kpi-label">支持引流引擎</div>
+            <div class="kpi-value">2+</div>
+          </div>
+        </div>
+        <div class="kpi-card" title="AWS EKS / GCP GKE / Azure AKS">
+          <div class="kpi-icon" style="--c:#13c2c2">3</div>
+          <div class="kpi-body">
+            <div class="kpi-label">Terraform 云厂商模块</div>
+            <div class="kpi-value">3</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 核心能力 -->
+      <div class="section-title">
+        <h2>核心能力</h2>
+        <span class="sub">6 大能力域，覆盖 LLM 出口安全全链路</span>
+      </div>
+      <div class="feature-grid">
+        <div class="card feature-card">
+          <div class="card-body">
+            <div class="feature-icon" style="--c:#1677ff">
+              <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+            </div>
+            <h3>透明出口引流</h3>
+            <p>Cilium eBPF 或 iptables TPROXY 透明拦截所有 LLM 出站流量，业务 Pod 零改造、零 sidecar、不改 SDK。</p>
+            <div class="tag-row">
+              <span class="tag tag-blue">Cilium eBPF</span>
+              <span class="tag tag-purple">iptables TPROXY</span>
+              <span class="tag tag-green">零侵入</span>
+            </div>
+          </div>
+        </div>
+        <div class="card feature-card">
+          <div class="card-body">
+            <div class="feature-icon" style="--c:#722ed1">
+              <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor"><path d="M9 2v6h6V2H9zm0 8v6h6v-6H9zm0 8v6h6v-6H9z"/></svg>
+            </div>
+            <h3>多检测器流水线</h3>
+            <p>rules -> heuristic -> encoding -> semantic 四段流水线，返回 [0,1] 归一化 risk_score。</p>
+            <div class="tag-row">
+              <span class="tag tag-blue">正则</span>
+              <span class="tag tag-purple">熵检测</span>
+              <span class="tag tag-cyan">Base64 还原</span>
+              <span class="tag tag-default">语义预留</span>
+            </div>
+          </div>
+        </div>
+        <div class="card feature-card">
+          <div class="card-body">
+            <div class="feature-icon" style="--c:#fa8c16">
+              <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor"><path d="M12 1L3 5v6c0 5.5 3.8 10.7 9 12 5.2-1.3 9-6.5 9-12V5l-9-4z"/></svg>
+            </div>
+            <h3>风险打分 + 策略引擎</h3>
+            <p>按 ArgusSecurityPolicy 阈值选 allow / block / degraded，支持 monitor / enforce 双模式。</p>
+            <div class="tag-row">
+              <span class="tag tag-blue">monitor</span>
+              <span class="tag tag-gold">enforce</span>
+              <span class="tag tag-green">fail-open</span>
+              <span class="tag tag-red">fail-closed</span>
+            </div>
+          </div>
+        </div>
+        <div class="card feature-card">
+          <div class="card-body">
+            <div class="feature-icon" style="--c:#52c41a">
+              <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zM6 20V4h7v5h5v11H6z"/></svg>
+            </div>
+            <h3>事件审计归档</h3>
+            <p>AIEvent 流式上报 controller，按 cluster_id/date/event_id 落盘 JSONL，at-least-once 语义。</p>
+            <div class="tag-row">
+              <span class="tag tag-blue">gRPC stream</span>
+              <span class="tag tag-green">JSONL</span>
+              <span class="tag tag-purple">幂等</span>
+              <span class="tag tag-cyan">at-least-once</span>
+            </div>
+          </div>
+        </div>
+        <div class="card feature-card">
+          <div class="card-body">
+            <div class="feature-icon" style="--c:#13c2c2">
+              <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor"><path d="M12 12c2.2 0 4-1.8 4-4s-1.8-4-4-4-4 1.8-4 4 1.8 4 4 4zm0 2c-2.7 0-8 1.3-8 4v2h16v-2c0-2.7-5.3-4-8-4z"/></svg>
+            </div>
+            <h3>Pod 身份溯源</h3>
+            <p>gateway 零 RBAC，身份全靠 controller PodIdentityService.Lookup 查 informer cache。</p>
+            <div class="tag-row">
+              <span class="tag tag-green">零 RBAC</span>
+              <span class="tag tag-blue">informer cache</span>
+              <span class="tag tag-cyan">24h ring buffer</span>
+            </div>
+          </div>
+        </div>
+        <div class="card feature-card">
+          <div class="card-body">
+            <div class="feature-icon" style="--c:#eb2f96">
+              <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor"><path d="M12 1L3 5v6c0 5.5 3.8 10.7 9 12 5.2-1.3 9-6.5 9-12V5l-9-4zm0 10.5l5-2.5-5-2.5-5 2.5 5 2.5z"/></svg>
+            </div>
+            <h3>TLS 解密 + CA 管理</h3>
+            <p>被动观测 / TLS 解密双模式，MutatingWebhook 自动注入 CA 根证书到业务 Pod。</p>
+            <div class="tag-row">
+              <span class="tag tag-purple">B 模式解密</span>
+              <span class="tag tag-blue">A 模式直通</span>
+              <span class="tag tag-gold">Webhook 注入</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 架构流程 -->
+      <div class="section-title">
+        <h2>架构流转</h2>
+        <span class="sub">一条请求从业务 Pod 到 LLM 厂商的完整路径</span>
+      </div>
+      <div class="card">
+        <div class="card-body">
+          <div class="arch-flow">
+            <div class="arch-node" style="--c:#1677ff">
+              <div class="arch-node-icon">
+                <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><path d="M4 4h16v16H4z" opacity="0.3"/><path d="M4 4h16v16H4V4zm2 2v12h12V6H6z"/></svg>
+              </div>
+              <span>业务 Pod</span>
+            </div>
+            <span class="arch-arrow">-></span>
+            <div class="arch-node" style="--c:#722ed1">
+              <div class="arch-node-icon">
+                <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><path d="M12 2L2 7l10 5 10-5-10-5z"/></svg>
+              </div>
+              <span>引流层</span>
+            </div>
+            <span class="arch-arrow">-></span>
+            <div class="arch-node" style="--c:#fa8c16">
+              <div class="arch-node-icon">
+                <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><path d="M3 3h18v6H3zm0 8h18v6H3z"/></svg>
+              </div>
+              <span>argus-gateway</span>
+            </div>
+            <span class="arch-arrow">-></span>
+            <div class="arch-node" style="--c:#13c2c2">
+              <div class="arch-node-icon">
+                <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><path d="M12 1L3 5v6c0 5.5 3.8 10.7 9 12 5.2-1.3 9-6.5 9-12V5l-9-4z"/></svg>
+              </div>
+              <span>argus-controller</span>
+            </div>
+            <span class="arch-arrow">-></span>
+            <div class="arch-node" style="--c:#eb2f96">
+              <div class="arch-node-icon">
+                <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14l-5-5h3V8h4v4h3l-6 5z"/></svg>
+              </div>
+              <span>LLM 厂商</span>
+            </div>
+          </div>
+          <p class="arch-desc">
+            业务 Pod 发起 LLM 请求 -> 引流层透明重定向 -> gateway 检测流水线 ->
+            controller 审计归档 -> 放行/阻断到 LLM 厂商
+          </p>
+        </div>
+      </div>
+
+      <!-- 快速上手 -->
+      <div class="section-title">
+        <h2>快速上手</h2>
+        <span class="sub">点击命令卡片可复制到剪贴板</span>
+      </div>
+      <div class="quickstart-grid">
+        <div class="card feature-card">
+          <div class="card-body">
+            <div class="feature-icon" style="--c:#1677ff">
+              <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><path d="M5 13l4 4L19 7l-2-2-8 8-2-2-2 2z"/></svg>
+            </div>
+            <h3>一键开发环境</h3>
+            <p>启动 Minikube + 构建镜像 + 部署 K8s + 端口转发，一条命令拉起完整开发环境。</p>
+            <div class="cmd-block" data-copy="make run">
+              <span class="prompt">$</span> make run
+            </div>
+            <div class="tip-row">
+              <span class="tag tag-blue">自动检测 Docker 资源</span>
+              <span class="tag tag-default">make kill 停止保留数据</span>
+              <span class="tag tag-default">make dev-logs 查看日志</span>
+            </div>
+          </div>
+        </div>
+        <div class="card feature-card">
+          <div class="card-body">
+            <div class="feature-icon" style="--c:#722ed1">
+              <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><path d="M22.7 19l-9.1-9.1c.9-2.3.4-5-1.5-6.9-2-2-5-2.4-7.4-1.3L9 6 6 9 1.6 4.7C.4 7.1.9 10.1 2.9 12.1c1.9 1.9 4.6 2.4 6.9 1.5l9.1 9.1c.4.4 1 .4 1.4 0l2.3-2.3c.5-.5.5-1.1.1-1.4z"/></svg>
+            </div>
+            <h3>编译二进制</h3>
+            <p>编译 gateway 和 controller 两个二进制到 bin/ 目录，多阶段 Docker 构建产出 distroless 镜像。</p>
+            <div class="cmd-block" data-copy="make build">
+              <span class="prompt">$</span> make build
+            </div>
+            <div class="tip-row">
+              <span class="tag tag-blue">make fmt 格式化</span>
+              <span class="tag tag-default">make lint 静态检查</span>
+              <span class="tag tag-default">make test 单元测试</span>
+            </div>
+          </div>
+        </div>
+        <div class="card feature-card">
+          <div class="card-body">
+            <div class="feature-icon" style="--c:#fa8c16">
+              <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zM6 20V4h7v5h5v11H6z"/></svg>
+            </div>
+            <h3>生成 Proto 桩</h3>
+            <p>基于 buf 生成 gRPC 桩代码，5 份 proto 契约 -> pkg/pb/argus/*/v1alpha1/。</p>
+            <div class="cmd-block" data-copy="make proto">
+              <span class="prompt">$</span> make proto
+            </div>
+            <div class="tip-row">
+              <span class="tag tag-blue">make crd 生成 CRD</span>
+              <span class="tag tag-default">make tidy 整理依赖</span>
+              <span class="tag tag-default">make all 全量检查</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 文档导航 -->
+      <div class="section-title">
+        <h2>文档与样例</h2>
+        <span class="sub">点击链接可直接跳转到仓库内文档</span>
+      </div>
+      <div class="card">
+        <div class="card-body">
+          <div class="doc-list">
+            <a class="doc-item" href="architecture.html">
+              <span class="doc-icon">Arch</span>
+              <div class="doc-text">
+                <div class="doc-title">架构设计</div>
+                <div class="doc-desc">逻辑拓扑 + 报文流转 13 步 + 组件职责矩阵</div>
+              </div>
+              <span class="tag tag-blue">architecture.html</span>
+            </a>
+            <a class="doc-item" href="traffic-interception.html">
+              <span class="doc-icon">TI</span>
+              <div class="doc-text">
+                <div class="doc-title">流量引流</div>
+                <div class="doc-desc">4 种透明出口引流方案对比 + Cilium / iptables 安装步骤</div>
+              </div>
+              <span class="tag tag-purple">traffic-interception.html</span>
+            </a>
+            <a class="doc-item" href="pod-identity.html">
+              <span class="doc-icon">Pod</span>
+              <div class="doc-text">
+                <div class="doc-title">Pod 身份</div>
+                <div class="doc-desc">身份溯源链路图 + 5 场景准确性矩阵 + 降级策略</div>
+              </div>
+              <span class="tag tag-cyan">pod-identity.html</span>
+            </a>
+            <a class="doc-item" href="tls-design.html">
+              <span class="doc-icon">TLS</span>
+              <div class="doc-text">
+                <div class="doc-title">TLS 解密</div>
+                <div class="doc-desc">被动观测 / TLS 解密 + CA 信任模型 + 6 条故障降级表</div>
+              </div>
+              <span class="tag tag-geekblue">tls-design.html</span>
+            </a>
+            <a class="doc-item" href="runmodes-failure.html">
+              <span class="doc-icon">Run</span>
+              <div class="doc-text">
+                <div class="doc-title">运行模式矩阵</div>
+                <div class="doc-desc">monitor/enforce x fail-open/closed 24 格矩阵</div>
+              </div>
+              <span class="tag tag-magenta">runmodes-failure.html</span>
+            </a>
+            <a class="doc-item" href="../deploy/helm/argus/values.yaml">
+              <span class="doc-icon">Helm</span>
+              <div class="doc-text">
+                <div class="doc-title">Helm Values</div>
+                <div class="desc">Helm 默认 values（可直接改副本/镜像/阈值）</div>
+              </div>
+              <span class="tag tag-volcano">values.yaml</span>
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- 故障矩阵 -->
+      <div class="section-title">
+        <h2>故障 &amp; 运行模式矩阵（节选）</h2>
+        <span class="sub">完整 24 格请看 runmodes-failure.md</span>
+      </div>
+      <div class="table-wrapper">
+        <table class="matrix-table">
+          <thead>
+            <tr>
+              <th>故障场景</th>
+              <th>monitor + fail-open</th>
+              <th>monitor + fail-closed</th>
+              <th>enforce + fail-open</th>
+              <th>enforce + fail-closed</th>
+              <th>failure_reason</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>controller Policy gRPC 断连 / 快照过期</td>
+              <td><span class="tag tag-green">ALLOW</span></td>
+              <td><span class="tag tag-green">ALLOW</span></td>
+              <td><span class="tag tag-gold">DEGRADED_ALLOW</span></td>
+              <td><span class="tag tag-red">DEGRADED_BLOCK</span></td>
+              <td><code>controller_unreachable</code></td>
+            </tr>
+            <tr>
+              <td>单一检测器超时（rules/heuristic/encoding）</td>
+              <td><span class="tag tag-green">ALLOW</span></td>
+              <td><span class="tag tag-green">ALLOW</span></td>
+              <td><span class="tag tag-gold">DEGRADED_ALLOW</span></td>
+              <td><span class="tag tag-red">DEGRADED_BLOCK</span></td>
+              <td><code>detector_timeout</code></td>
+            </tr>
+            <tr>
+              <td>CA Secret 读取失败（B 模式）</td>
+              <td><span class="tag tag-gold">降级 A 模式</span></td>
+              <td><span class="tag tag-red">阻断</span></td>
+              <td><span class="tag tag-gold">降级 A 模式</span></td>
+              <td><span class="tag tag-red">阻断</span></td>
+              <td><code>ca_secret_missing</code></td>
+            </tr>
+            <tr>
+              <td>事件连续 3 次上报失败（仅审计失败）</td>
+              <td><span class="tag tag-green">按 monitor 放行</span></td>
+              <td><span class="tag tag-green">按 monitor 放行</span></td>
+              <td><span class="tag tag-blue">按风险分决策</span></td>
+              <td><span class="tag tag-blue">按风险分决策</span></td>
+              <td><code>event_sink_degraded</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 交付物 -->
+      <div class="section-title">
+        <h2>快速上手：下载配置与样例</h2>
+        <span class="sub">Helm install 之前，先看 values.yaml</span>
+      </div>
+      <div class="card">
+        <div class="card-body">
+          <div class="download-row">
+            <a class="btn btn-default" href="../deploy/helm/argus/values.yaml" download>
+              下载 values.yaml
+            </a>
+            <a class="btn btn-default" href="../deploy/examples/llmprovider-openai.yaml" download>
+              LLMProvider 样例
+            </a>
+            <a class="btn btn-default" href="../deploy/examples/argussecuritypolicy-default.yaml" download>
+              ArgusSecurityPolicy 样例
+            </a>
+            <a class="btn btn-default" href="../deploy/helm/argus/Chart.yaml">
+              查看 Helm Chart
+            </a>
+          </div>
+          <p class="download-note">
+            说明：本页所有下载都走仓库相对路径，离线部署时可以把 docs/ 目录整个打包，
+            不必担心外链缺失；仅 Ant Design reset.css 走官方 CDN（unpkg）。
+          </p>
+        </div>
+      </div>
+
+    </main>
+
+    <!-- ====== Footer ====== -->
+    <footer class="app-footer">
+      <div class="footer-row">
+        <span>Made with care by 哪吒网络安全 - Argus 核心团队</span>
+        <span class="divider">|</span>
+        <span>License: Apache-2.0</span>
+      </div>
+    </footer>
+
+  </div>
+
+  <!-- Toast 通知容器 -->
+  <div id="toast" class="toast"></div>
+
+  <!-- 纯 JS 交互（无框架） -->
   <script src="./js/app.js" defer></script>
-
-  <!-- 启动顺序：
-       1) cdn-loader.js 注册 window.ArgusCDN.ready() 串行拉取 React/ReactDOM/dayjs+zh-cn/icons/antd
-       2) 全部就绪后 app.js 调 ArgusDocsApp.mount() 用 ConfigProvider(zhCN) 渲染 -->
-  <script defer>
-    (function () {
-      'use strict';
-      function boot() {
-        if (!window.ArgusCDN || !window.ArgusDocsApp) {
-          return setTimeout(boot, 40);
-        }
-        window.ArgusCDN.ready().then(function () {
-          window.ArgusDocsApp.mount();
-        }).catch(function (err) {
-          // CDN 资源完全失败时，提示用户检查网络；页面上仍能显示 docs 链接（因为 HTML body 里是 React 渲染，
-          // 这里留一条兜底文案到 root 里让用户不至于看到白屏）
-          var root = document.getElementById('root');
-          if (root) {
-            root.innerHTML =
-              '<div style="padding:24px;font-family:system-ui">' +
-              '<h3 style="margin:0 0 8px">CDN 资源加载失败（React/antd）</h3>' +
-              '<p style="margin:0 0 12px;color:#555">请确认网络可以访问 <code>unpkg.com</code> 或 <code>cdn.jsdelivr.net</code>。</p>' +
-              '<ul>' +
-                '<li><a href="architecture.md">architecture.md</a></li>' +
-                '<li><a href="traffic-interception.md">traffic-interception.md</a></li>' +
-                '<li><a href="pod-identity.md">pod-identity.md</a></li>' +
-                '<li><a href="tls-design.md">tls-design.md</a></li>' +
-                '<li><a href="runmodes-failure.md">runmodes-failure.md</a></li>' +
-              '</ul>' +
-              '<p style="color:#666">错误详情：' + String(err && err.message || err) + '</p>' +
-              '</div>';
-          }
-        });
-      }
-      boot();
-    })();
-  </script>
 </body>
 </html>

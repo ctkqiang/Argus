@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Argus（观枢）文档中心 — 文档索引" />
+  <title>文档索引 | Argus（观枢）</title>
+  <link rel="preconnect" href="https://unpkg.com" crossorigin />
+  <link rel="dns-prefetch" href="https://unpkg.com" />
+  <link rel="stylesheet" href="https://unpkg.com/antd@5.21.4/dist/reset.css" crossorigin="anonymous" referrerpolicy="no-referrer-when-downgrade" />
+  <link rel="stylesheet" href="./css/styles.css" />
+  <link rel="stylesheet" href="./css/doc-page.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="app-header">
+      <a class="app-brand" href="index.html">
+        <div class="brand-dot"></div>
+        <span>Argus（观枢）文档中心</span>
+      </a>
+      <nav class="app-nav">
+        <a class="nav-link" href="index.html">首页</a>
+<a class="nav-link" href="architecture.html">架构设计</a>
+<a class="nav-link" href="traffic-interception.html">流量引流</a>
+<a class="nav-link" href="pod-identity.html">Pod 身份</a>
+<a class="nav-link" href="tls-design.html">TLS 解密</a>
+<a class="nav-link" href="runmodes-failure.html">运行模式矩阵</a>
+      </nav>
+      <div class="header-actions">
+        <a class="btn btn-default btn-sm" href="https://github.com/ctkqiang/argus" target="_blank" rel="noopener">GitHub</a>
+      </div>
+    </header>
+    <main class="doc-content">
+      <h1 id="docs">docs/</h1>
+<p>本目录只放<strong>长期稳定、review 过</strong>的设计文档。临时想法、会议笔记丢 issues / Notion，别混进来。</p>
+<p>对应 checklist §3 的 5 份文档：</p>
+<ol>
+<li><code>architecture.md</code>：逻辑拓扑 + 报文流转路径。</li>
+<li><code>traffic-interception.md</code>：4 种透明出口引流方案对比 + MVP 首选/兜底安装步骤。</li>
+<li><code>pod-identity.md</code>：身份溯源链路图 + 各场景准确性矩阵。</li>
+<li><code>tls-design.md</code>：被动观测 / TLS 解密两种模式、CA 根证书要求、故障降级表。</li>
+<li><code>runmodes-failure.md</code>：monitor/enforce × fail-open/fail-closed + §12.3 故障矩阵 24 格。</li>
+</ol>
+<p>文档规范：<br />
+- 所有 "TODO（MVP 之后做）" 都显式写出来，别假装已经做完。<br />
+- 表格必须有"前提假设"一列，不然就是空话。<br />
+- 引用代码路径用相对路径，比如 <code>../internal/gateway/tls/</code>。</p>
+    </main>
+    <footer class="app-footer">
+      <div class="footer-row">
+        <span>Made with care by 哪吒网络安全 - Argus 核心团队</span>
+        <span class="divider">|</span>
+        <span>License: Apache-2.0</span>
+      </div>
+    </footer>
+  </div>
+</body>
+</html>

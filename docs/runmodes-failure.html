@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Argus（观枢）文档中心 — 运行模式矩阵" />
+  <title>运行模式矩阵 | Argus（观枢）</title>
+  <link rel="preconnect" href="https://unpkg.com" crossorigin />
+  <link rel="dns-prefetch" href="https://unpkg.com" />
+  <link rel="stylesheet" href="https://unpkg.com/antd@5.21.4/dist/reset.css" crossorigin="anonymous" referrerpolicy="no-referrer-when-downgrade" />
+  <link rel="stylesheet" href="./css/styles.css" />
+  <link rel="stylesheet" href="./css/doc-page.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="app-header">
+      <a class="app-brand" href="index.html">
+        <div class="brand-dot"></div>
+        <span>Argus（观枢）文档中心</span>
+      </a>
+      <nav class="app-nav">
+        <a class="nav-link" href="index.html">首页</a>
+<a class="nav-link" href="architecture.html">架构设计</a>
+<a class="nav-link" href="traffic-interception.html">流量引流</a>
+<a class="nav-link" href="pod-identity.html">Pod 身份</a>
+<a class="nav-link" href="tls-design.html">TLS 解密</a>
+<a class="nav-link active" href="runmodes-failure.html">运行模式矩阵</a>
+      </nav>
+      <div class="header-actions">
+        <a class="btn btn-default btn-sm" href="https://github.com/ctkqiang/argus" target="_blank" rel="noopener">GitHub</a>
+      </div>
+    </header>
+    <main class="doc-content">
+      <h1 id="runmodes-failuremd-monitor-enforce-fail-open-fail-closed-123-24">runmodes-failure.md — monitor / enforce × fail-open / fail-closed + §12.3 24 格矩阵</h1>
+<h2 id="1">1. 基本语义（别混，错了会让业务/安全两边都骂）</h2>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>值</th>
+<th>语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ASP.mode</code>（怎么处理命中）</td>
+<td><code>monitor</code></td>
+<td>就算判定为 100% 恶意，也<strong>放行</strong>，只在事件 + 日志里打高风险。给上线初期、误报率还不稳定时用。</td>
+</tr>
+<tr>
+<td></td>
+<td><code>enforce</code></td>
+<td>风险分 ≥ <code>thresholds.blockScore</code> 就<strong>真阻断</strong>，回业务 HTTP 451 + <code>argus-final-action: block</code>。给稳定上线后用。</td>
+</tr>
+<tr>
+<td><code>ASP.failureMode</code>（安全组件自己挂了怎么办）</td>
+<td><code>fail-open</code></td>
+<td>安全层不可用时，默认让业务流量<strong>过</strong>。业务第一。</td>
+</tr>
+<tr>
+<td></td>
+<td><code>fail-closed</code></td>
+<td>安全层不可用时，默认把流量<strong>掐掉</strong>。安全第一，适合强合规/涉密 namespace。</td>
+</tr>
+</tbody>
+</table>
+<h2 id="2-24-123-8-3-modefailuremode-22">2. 24 格矩阵（§12.3 全部格子；8 故障 × 3 组件 × mode/failureMode 2×2 压缩成下表）</h2>
+<p>说明：<br />
+- 行：故障场景（8 个）<br />
+- 列按 <code>(mode, failureMode)</code> 分 4 格：(monitor,open) / (monitor,closed) / (enforce,open) / (enforce,closed)<br />
+- 单元格写：<code>最终放行/阻断决策 + AIEvent.final_action + AIEvent.failure_reason</code><br />
+- 所有格：<strong>必须生成 AIEvent</strong>（除非写了 "No, why…"，这里 MVP 阶段一全是 Yes）。</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>故障场景</th>
+<th>(monitor, fail-open)</th>
+<th>(monitor, fail-closed)</th>
+<th>(enforce, fail-open)</th>
+<th>(enforce, fail-closed)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>argus-controller gRPC 断连（Policy 快照过期）</td>
+<td>放行 + ALLOW + controller_unreachable</td>
+<td>放行 + ALLOW + controller_unreachable（mode=monitor 优先级更高，fail-closed 不生效，因为没做判定）</td>
+<td>放行 + DEGRADED_ALLOW + controller_unreachable</td>
+<td>阻断 + DEGRADED_BLOCK + controller_unreachable</td>
+</tr>
+<tr>
+<td>2</td>
+<td>argus-controller 身份 Lookup RPC 超时 2s</td>
+<td>放行 + ALLOW + identity_timeout（AIEvent.pod_identity.confidence=0.1）</td>
+<td>同上</td>
+<td>放行 + DEGRADED_ALLOW + identity_timeout</td>
+<td>阻断 + DEGRADED_BLOCK + identity_timeout</td>
+</tr>
+<tr>
+<td>3</td>
+<td>单个检测器（rules/heuristic/encoding）超时</td>
+<td>放行 + ALLOW + detector_timeout（risk_score 用其他检测器综合）</td>
+<td>同上</td>
+<td>放行 + DEGRADED_ALLOW + detector_timeout</td>
+<td>阻断 + DEGRADED_BLOCK + detector_timeout</td>
+</tr>
+<tr>
+<td>4</td>
+<td>整个检测流水线 pipeline_timeout=2s 全超时</td>
+<td>放行 + ALLOW + pipeline_timeout</td>
+<td>同上</td>
+<td>放行 + DEGRADED_ALLOW + pipeline_timeout</td>
+<td>阻断 + DEGRADED_BLOCK + pipeline_timeout</td>
+</tr>
+<tr>
+<td>5</td>
+<td>读 CA Secret 失败（tls-design §5 故障）</td>
+<td>放行 + ALLOW + ca_secret_missing（降级 A 模式）</td>
+<td>阻断 + DEGRADED_BLOCK + ca_secret_missing</td>
+<td>放行 + DEGRADED_ALLOW + ca_secret_missing（降级 A 模式）</td>
+<td>阻断 + DEGRADED_BLOCK + ca_secret_missing</td>
+</tr>
+<tr>
+<td>6</td>
+<td>单 SNI 叶子证书签发失败（tls-design §5 故障）</td>
+<td>放行 + ALLOW + leaf_cert_sign_failure（降级 A 模式，只影响该 SNI）</td>
+<td>阻断 + DEGRADED_BLOCK + leaf_cert_sign_failure</td>
+<td>放行 + DEGRADED_ALLOW + leaf_cert_sign_failure</td>
+<td>阻断 + DEGRADED_BLOCK + leaf_cert_sign_failure</td>
+</tr>
+<tr>
+<td>7</td>
+<td>事件上报 EventService.ReportEvents 连续 3 次 ack 失败（不影响业务路径）</td>
+<td>放行 + ALLOW + event_sink_degraded（内存缓冲到上限后丢事件，打 WARN）</td>
+<td>同上</td>
+<td>放行 + ALLOW/按风险分正常 BLOCK + event_sink_degraded</td>
+<td>放行 + ALLOW/按风险分正常 BLOCK + event_sink_degraded（⚠️ 事件失败不应该改变放行/阻断决策，不然会出现"日志挂了就把业务掐断"的傻逼事故）</td>
+</tr>
+<tr>
+<td>8</td>
+<td>引流层故障（Cilium EGW CR 配错 / iptables 链崩）</td>
+<td><strong>引流层自己的 fail-open 透传直通</strong>；gateway 看不到流量，因此<strong>没有 AIEvent</strong>，只能靠引流层指标告警补审计缺口</td>
+<td>引流层 fail-closed 掐断出口，业务全挂（不推荐，只能强合规 ns 用）</td>
+<td>同左（引流层的 open/closed 是 helm values 单独开关，不是 ASP.failureMode，两者层次要分清）</td>
+<td>同左</td>
+</tr>
+</tbody>
+</table>
+<h2 id="3">3. 两条"运维要刻进骨子里"的话</h2>
+<ol>
+<li><strong>mode 永远优先于 failureMode 的字面"闭"</strong>：<br />
+   比如 (monitor, fail-closed) 这种组合，fail-closed 只影响"安全组件自己已经坏了、根本做不出判定"的极端情况；<br />
+   如果组件没坏，monitor 模式不管风险分多高都放行——不然就不叫 monitor，应该叫 enforce。</li>
+<li><strong>事件上报故障绝不改变放行/阻断决策</strong>（第 7 行的重点）：<br />
+   如果因为"日志磁盘写满"就把业务所有 LLM 出向掐断，那是反模式。<br />
+   正确做法：AIEvent 内存缓冲达到上限就丢最老的事件 + Prometheus <code>argus_event_dropped_total</code> 告警 + controller 端补批量重放恢复。</li>
+</ol>
+    </main>
+    <footer class="app-footer">
+      <div class="footer-row">
+        <span>Made with care by 哪吒网络安全 - Argus 核心团队</span>
+        <span class="divider">|</span>
+        <span>License: Apache-2.0</span>
+      </div>
+    </footer>
+  </div>
+</body>
+</html>

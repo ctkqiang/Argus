@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Argus（观枢）文档中心 — 架构设计" />
+  <title>架构设计 | Argus（观枢）</title>
+  <link rel="preconnect" href="https://unpkg.com" crossorigin />
+  <link rel="dns-prefetch" href="https://unpkg.com" />
+  <link rel="stylesheet" href="https://unpkg.com/antd@5.21.4/dist/reset.css" crossorigin="anonymous" referrerpolicy="no-referrer-when-downgrade" />
+  <link rel="stylesheet" href="./css/styles.css" />
+  <link rel="stylesheet" href="./css/doc-page.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="app-header">
+      <a class="app-brand" href="index.html">
+        <div class="brand-dot"></div>
+        <span>Argus（观枢）文档中心</span>
+      </a>
+      <nav class="app-nav">
+        <a class="nav-link" href="index.html">首页</a>
+<a class="nav-link active" href="architecture.html">架构设计</a>
+<a class="nav-link" href="traffic-interception.html">流量引流</a>
+<a class="nav-link" href="pod-identity.html">Pod 身份</a>
+<a class="nav-link" href="tls-design.html">TLS 解密</a>
+<a class="nav-link" href="runmodes-failure.html">运行模式矩阵</a>
+      </nav>
+      <div class="header-actions">
+        <a class="btn btn-default btn-sm" href="https://github.com/ctkqiang/argus" target="_blank" rel="noopener">GitHub</a>
+      </div>
+    </header>
+    <main class="doc-content">
+      <h1 id="architecturemd-argus">architecture.md — Argus（观枢）逻辑拓扑 &amp; 报文流转</h1>
+<h2 id="1">1. 目标与边界（先把"没做的"摆出来）</h2>
+<p>MVP 阶段一（§14）<strong>明确不做</strong>的事这里先列出来，免得设计文档给人错觉：<br />
+- 不支持多家厂商适配，只做 OpenAI 兼容协议的出向。<br />
+- 语义检测器只预留接口，不接外部模型。<br />
+- 不做可视化面板。<br />
+- 事件只落本地 PV，不接对象存储 / SIEM。<br />
+- 不做多集群联邦。</p>
+<h2 id="2-spec-4">2. 组件职责矩阵（对齐 spec §4）</h2>
+<table>
+<thead>
+<tr>
+<th>角色</th>
+<th>运行位置</th>
+<th>必须做什么</th>
+<th>绝对不许做什么</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>argus-controller</td>
+<td>Deployment, 单副本 leader election</td>
+<td>① watch CRD（ASP / LLMProvider）并通过 PolicyService gRPC 推全量+增量；② 提供 PodIdentityService.Lookup；③ 接收 EventService.ReportEvents 流式写入本地 PV；④ 双向健康检查。</td>
+<td><strong>不许跑任何检测业务逻辑</strong>；不许拿 cluster-admin。</td>
+</tr>
+<tr>
+<td>argus-gateway</td>
+<td>Deployment 多副本 + HPA + Service</td>
+<td>① 接收透明出口流量（TLS/HTTP1/HTTP2）；② SNI 命中 LLMProvider 才进检测流水线，否则原样透传；③ 流水线 rules → heuristic → encoding → (semantic reserved)；④ 风险打分 + 策略引擎（monitor/enforce × fail-open/closed）；⑤ 填 AIEvent 20+ 字段后异步 gRPC 上报。</td>
+<td><strong>不许申请任何 k8s RBAC 权限</strong>；身份全走 controller；不许 InsecureSkipVerify=true。</td>
+</tr>
+<tr>
+<td>引流层（Cilium eBPF 或 iptables TPROXY）</td>
+<td>argus-system 命名空间，不在业务命名空间放任何 sidecar/DaemonSet sensor</td>
+<td>把匹配 LLMProvider.hosts 的出向 443 流量透明重定向到 gateway Service</td>
+<td>不做协议解析；故障时按引流层各自文档走"透传直通 + 告警"，不静默丢包。</td>
+</tr>
+<tr>
+<td>MutatingWebhook（CA 注入）</td>
+<td>argus-system 命名空间</td>
+<td>仅做两件事：① 为白名单内 Pod 注入 argus CA 到 trust store；② 设环境变量如 SSL_CERT_FILE。</td>
+<td>不 sidecar、不改 SDK、不篡改 OPENAI_BASE_URL。</td>
+</tr>
+</tbody>
+</table>
+<h2 id="3-mermaid">3. 逻辑拓扑图（Mermaid）</h2>
+<pre><code class="language-mermaid">flowchart LR
+  subgraph UserNS[&quot;业务命名空间（无 sidecar / 零改造）&quot;]
+    P1[&quot;业务 Pod&quot;]
+  end
+  subgraph Intercept[&quot;argus-system：引流层（仅出口）&quot;]
+    CE[&quot;CiliumEgressGatewayPolicy&lt;br/&gt;或 ds-node-tproxy(TPROXY)&quot;]
+  end
+  subgraph Argus[&quot;argus：观枢集群组件&quot;]
+    GW[&quot;argus-gateway（多副本 HPA）&quot;]
+    CT[&quot;argus-controller（单副本 Leader）&quot;]
+    MW[&quot;MutatingWebhook（仅注 CA）&quot;]
+  end
+  subgraph Ext[&quot;LLM 厂商侧（原始域名直连，C5）&quot;]
+    OAI[&quot;api.openai.com 等&quot;]
+  end
+
+  P1 -- &quot;ClientHello: api.openai.com&quot; --&gt; CE
+  CE -- &quot;TPROXY / EGW 重定向&quot; --&gt; GW
+  GW -- &quot;LLMProvider 识别命中 + 流水线判定&quot; --&gt; CT
+  GW -- &quot;放行/阻断后，按原始 SNI 建出站&quot; --&gt; OAI
+  MW -- &quot;Pod 创建时仅注 CA&quot; --&gt; P1
+  CT -- &quot;Policy Watch / Identity Lookup / Events&quot; --&gt; GW
+</code></pre>
+<h2 id="4-13">4. 一条请求完整流转（13 步，含失败分支）</h2>
+<ol>
+<li>业务 Pod 业务代码直接调用 <code>openai.chat.completions.create()</code>，Host=<code>api.openai.com</code>。<br />
+   * （C3 要求：源码 / Dockerfile / SDK 零修改；没设 OPENAI_BASE_URL。）</li>
+<li>容器内程序发起 <code>TCP connect(api.openai.com:443)</code>，DNS 解析仍返回真实 LLM 厂商 IP（C5）。</li>
+<li>集群出口引流层（Cilium EGW / iptables TPROXY）匹配到 <code>LLMProvider.hosts</code>，把报文透明送到 argus-gateway Service。</li>
+<li>gateway 从 ClientHello 拿 SNI，走 PolicyService gRPC 快照问：这是谁？策略是什么？<br />
+   * controller 没回话 / 快照过期：按 <code>failureMode</code> 走降级（fail-open 直通 vs fail-closed 阻断），同时记事件 <code>failure_reason=controller_unreachable</code>。</li>
+<li>SNI 命中但 <code>LLMProvider.skipTLSInspection=true</code>：走 A 模式（被动观测），只记元数据，不解密、不进检测，直通。</li>
+<li>SNI 命中且 <code>tlsInspection.enabled=true</code>（B 模式默认）：gateway 读 k8s Secret <code>argus-ca-tls</code>，<br />
+   按 SNI 动态签一张叶子证书，把 TLS 终止在网关里。<br />
+   * 秘钥读不到：按 <code>failureMode</code> 降级（见 tls-design.md 故障降级表）。<br />
+   * 业务 Pod 里因为 Webhook 已经把 CA 根放进 trust store，握手成功。</li>
+<li>应用层协议识别：HTTP/1.1 h1 / h2（h2 ALPN 已谈判就走 h2）。</li>
+<li>Provider adapter（仅 OpenAI 兼容）识别路径 <code>/v1/chat/completions</code> / <code>/v1/completions</code>，<br />
+   把单轮 / 多轮 / 带 tools 的 prompt 抽成 <code>proto:LLMRequest</code>。<br />
+   * 非 LLM 路径（比如同一个 SNI 下别的 API）：不在此列，不进检测流水线，直连。</li>
+<li>检测流水线按序：rules → heuristic → encoding。<br />
+   * 任一阶段超时/报错：按 §12.3 矩阵走。</li>
+<li>把 3 个检测器的结果合成最终 <code>risk_score ∈ [0,1]</code>。</li>
+<li>策略引擎读 <code>ASP.mode</code> × <code>ASP.failureMode</code>：<ul>
+<li><code>monitor</code> → 一律放行，仅记日志 + 事件。</li>
+<li><code>enforce</code> → <code>risk_score &gt; thresholds.blockScore</code> 就阻断（HTTP 451/GRPC 状态）。</li>
+</ul>
+</li>
+<li>gateway 组装 <code>AIEvent</code>（含 cluster_id/session_id/request_id，<code>request_payload</code> 默认截断 4KiB + 脱敏），<br />
+    异步调 <code>EventService.ReportEvents(stream)</code> 上报 controller；controller 按 <code>cluster_id/date/event_id.jsonl</code> 落盘。</li>
+<li>gateway 放行路径：用和业务原目的 IP/SNI 一致的出站连接去 <code>api.openai.com</code>，SSE/body 原样反压回业务客户端；阻断路径：直接回 451，且上报 <code>final_action=BLOCK</code>。</li>
+</ol>
+<h2 id="5">5. 数据一致性 &amp; 故障语义</h2>
+<ul>
+<li>事件语义"至少一次"：ReportAck 带 <code>retry_delay_ms</code>，失败重试窗口 <code>[window_start_ms, window_end_ms]</code>（见 event.proto）。</li>
+<li>controller 重启后 PolicyService 必须推全量快照，gateway 拿到新快照前用旧快照 + 自己的 <code>failureMode</code>。</li>
+<li>任何"安全层自身挂了"的情况默认行为由 <strong>Pod 级 ASP.failureMode 控制</strong>，不是由全局 env 决定。</li>
+</ul>
+    </main>
+    <footer class="app-footer">
+      <div class="footer-row">
+        <span>Made with care by 哪吒网络安全 - Argus 核心团队</span>
+        <span class="divider">|</span>
+        <span>License: Apache-2.0</span>
+      </div>
+    </footer>
+  </div>
+</body>
+</html>

@@ -6,78 +6,69 @@
 (function (global) {
   'use strict';
 
-  const VERSIONS = {
+  var VERSIONS = {
     react: '18.3.1',
     antd: '5.21.4',
     icons: '5.6.1',
     dayjs: '1.11.13'
   };
 
-  const PRIMARY = 'https://unpkg.com';
-  const FALLBACK = 'https://cdn.jsdelivr.net/npm';
+  var PRIMARY = 'https://unpkg.com';
+  var FALLBACK = 'https://cdn.jsdelivr.net/npm';
 
-    const ASSETS = [
+  var ASSETS = [
     {
-      kind: "css",
-      name: "antd reset.css",
-      // // no global registration required (side-effect only),
-      primary:   "https://unpkg.com/antd@5.21.4/dist/reset.css",
-      fallback:  "https://cdn.jsdelivr.net/npm/antd@5.21.4/dist/reset.css",
-      integrity: "sha384-Rh5FRX7P6eIAOLQJXihyUaEa7SElWzcO7ZQk3pb6YhVJVfBq1m7QAZXxSy+lIAuJ",  // SRI sha384，与 docs/js/resource-manifest.json 保持一致
+      kind: 'css',
+      name: 'antd reset.css',
+      primary: 'https://unpkg.com/antd@5.21.4/dist/reset.css',
+      fallback: 'https://cdn.jsdelivr.net/npm/antd@5.21.4/dist/reset.css'
     },
     {
-      kind: "js",
-      name: "react",
-      global: "React",
-      primary:   "https://unpkg.com/react@18.3.1/umd/react.production.min.js",
-      fallback:  "https://cdn.jsdelivr.net/npm/react@18.3.1/umd/react.production.min.js",
-      integrity: "sha384-DGyLxAyjq0f9SPpVevD6IgztCFlnMF6oW/XQGmfe+IsZ8TqEiDrcHkMLKI6fiB/Z",  // SRI sha384，与 docs/js/resource-manifest.json 保持一致
+      kind: 'js',
+      name: 'react',
+      global: 'React',
+      primary: 'https://unpkg.com/react@18.3.1/umd/react.production.min.js',
+      fallback: 'https://cdn.jsdelivr.net/npm/react@18.3.1/umd/react.production.min.js'
     },
     {
-      kind: "js",
-      name: "react-dom",
-      global: "ReactDOM",
-      primary:   "https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js",
-      fallback:  "https://cdn.jsdelivr.net/npm/react-dom@18.3.1/umd/react-dom.production.min.js",
-      integrity: "sha384-gTGxhz21lVGYNMcdJOyq01Edg0jhn/c22nsx0kyqP0TxaV5WVdsSH1fSDUf5YJj1",  // SRI sha384，与 docs/js/resource-manifest.json 保持一致
+      kind: 'js',
+      name: 'react-dom',
+      global: 'ReactDOM',
+      primary: 'https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js',
+      fallback: 'https://cdn.jsdelivr.net/npm/react-dom@18.3.1/umd/react-dom.production.min.js'
     },
     {
-      kind: "js",
-      name: "dayjs",
-      global: "dayjs",
-      primary:   "https://unpkg.com/dayjs@1.11.13/dayjs.min.js",
-      fallback:  "https://cdn.jsdelivr.net/npm/dayjs@1.11.13/dayjs.min.js",
-      integrity: "sha384-DpVxUeeBWjUvUV1czyIHJAjh+jYUZFu2lLakbdua5vbwOrBGi1UgaKCHjTC+x3Ky",  // SRI sha384，与 docs/js/resource-manifest.json 保持一致
+      kind: 'js',
+      name: 'dayjs',
+      global: 'dayjs',
+      primary: 'https://unpkg.com/dayjs@1.11.13/dayjs.min.js',
+      fallback: 'https://cdn.jsdelivr.net/npm/dayjs@1.11.13/dayjs.min.js'
     },
     {
-      kind: "js",
-      name: "dayjs locale zh-cn",
-      // // no global registration required (side-effect only),
-      primary:   "https://unpkg.com/dayjs@1.11.13/locale/zh-cn.js",
-      fallback:  "https://cdn.jsdelivr.net/npm/dayjs@1.11.13/locale/zh-cn.js",
-      integrity: "sha384-JlOvD9rwLmKdB9EoDKPPtxT02Btalz7oisrWI0tS0cwjMnTvZB9ww5BpcPAnhn+a",  // SRI sha384，与 docs/js/resource-manifest.json 保持一致
+      kind: 'js',
+      name: 'dayjs locale zh-cn',
+      primary: 'https://unpkg.com/dayjs@1.11.13/locale/zh-cn.js',
+      fallback: 'https://cdn.jsdelivr.net/npm/dayjs@1.11.13/locale/zh-cn.js'
     },
     {
-      kind: "js",
-      name: "@ant-design/icons",
-      global: "icons",
-      primary:   "https://unpkg.com/@ant-design/icons@5.6.1/dist/index.umd.min.js",
-      fallback:  "https://cdn.jsdelivr.net/npm/@ant-design/icons@5.6.1/dist/index.umd.min.js",
-      integrity: "sha384-0EWwEDsIH8NINq/z7KdxJDjeP9rCWPurEK0BZnkfhKH9WQGpC8FPbOY0mDyOS2WU",  // SRI sha384，与 docs/js/resource-manifest.json 保持一致
+      kind: 'js',
+      name: '@ant-design/icons',
+      global: 'icons',
+      primary: 'https://unpkg.com/@ant-design/icons@5.6.1/dist/index.umd.min.js',
+      fallback: 'https://cdn.jsdelivr.net/npm/@ant-design/icons@5.6.1/dist/index.umd.min.js'
     },
     {
-      kind: "js",
-      name: "antd",
-      global: "antd",
-      primary:   "https://unpkg.com/antd@5.21.4/dist/antd.min.js",
-      fallback:  "https://cdn.jsdelivr.net/npm/antd@5.21.4/dist/antd.min.js",
-      integrity: "sha384-aHcvD9lceo5OXgnbAcHp2RPWwCT3dsRbgapm0ASvhDyAYspgj1NC5k/NNUEsAT6v",  // SRI sha384，与 docs/js/resource-manifest.json 保持一致
-    },
+      kind: 'js',
+      name: 'antd',
+      global: 'antd',
+      primary: 'https://unpkg.com/antd@5.21.4/dist/antd.min.js',
+      fallback: 'https://cdn.jsdelivr.net/npm/antd@5.21.4/dist/antd.min.js'
+    }
   ];
 
-
   function once(fn) {
-    let done = false; let result;
+    var done = false;
+    var result;
     return function () {
       if (done) return result;
       done = true;
@@ -91,17 +82,22 @@
     return Object.prototype.hasOwnProperty.call(global, key) && global[key] != null;
   }
 
-  function injectCSS(href) {
-    if (document.querySelector(`link[rel=stylesheet][href="${href}"]`)) return Promise.resolve();
-    return new Promise((resolve, reject) => {
-      const link = document.createElement('link');
-    link.integrity = asset.integrity;
-    link.crossOrigin = 'anonymous';
-    link.referrerPolicy = 'no-referrer-when-downgrade';
+  /* injectCSS: 注入 CSS link 标签到 head
+   * asset 参数从外层闭包传入，如果带 integrity 就加 SRI 校验
+   */
+  function injectCSS(href, asset) {
+    if (document.querySelector('link[rel="stylesheet"][href="' + href + '"]')) return Promise.resolve();
+    return new Promise(function (resolve, reject) {
+      var link = document.createElement('link');
+      if (asset && asset.integrity) {
+        link.integrity = asset.integrity;
+        link.crossOrigin = 'anonymous';
+      }
+      link.referrerPolicy = 'no-referrer-when-downgrade';
       link.rel = 'stylesheet';
       link.href = href;
-      link.onload = () => resolve();
-      link.onerror = () => {
+      link.onload = function () { resolve(); };
+      link.onerror = function () {
         if (link.parentNode) link.parentNode.removeChild(link);
         reject(new Error('CSS failed: ' + href));
       };
@@ -109,20 +105,23 @@
     });
   }
 
-  function injectJS(src) {
-    if (document.querySelector(`script[src="${src}"]`)) return Promise.resolve();
-    return new Promise((resolve, reject) => {
-      const s = document.createElement('script');
-    s.integrity = asset.integrity;
-    s.crossOrigin = 'anonymous';
-    s.referrerPolicy = 'no-referrer-when-downgrade';
+  /* injectJS: 注入 script 标签到 head
+   * asset 参数从外层闭包传入，如果带 integrity 就加 SRI 校验
+   */
+  function injectJS(src, asset) {
+    if (document.querySelector('script[src="' + src + '"]')) return Promise.resolve();
+    return new Promise(function (resolve, reject) {
+      var s = document.createElement('script');
+      if (asset && asset.integrity) {
+        s.integrity = asset.integrity;
+        s.crossOrigin = 'anonymous';
+      }
+      s.referrerPolicy = 'no-referrer-when-downgrade';
       s.src = src;
       s.async = false;
       s.defer = false;
-      s.crossOrigin = 'anonymous';
-      s.referrerPolicy = 'no-referrer-when-downgrade';
-      s.onload = () => resolve();
-      s.onerror = () => {
+      s.onload = function () { resolve(); };
+      s.onerror = function () {
         if (s.parentNode) s.parentNode.removeChild(s);
         reject(new Error('Script failed: ' + src));
       };
@@ -130,29 +129,45 @@
     });
   }
 
+  /* tryPrimaryThenFallback: 先试 primary CDN，失败后自动回落到 fallback CDN
+   * 把 asset 传给 injectCSS/injectJS，让 integrity（如果有）生效
+   */
   function tryPrimaryThenFallback(asset) {
-    const doInject = asset.kind === 'css' ? injectCSS : injectJS;
-    return doInject(asset.primary).catch(() => doInject(asset.fallback));
+    var doInject = asset.kind === 'css' ? injectCSS : injectJS;
+    return doInject(asset.primary, asset).catch(function () {
+      return doInject(asset.fallback, asset);
+    });
   }
 
-  async function load(asset) {
+  /* load: 加载单个资源，如果全局变量已存在则跳过
+   */
+  function load(asset) {
     if (asset.kind === 'js' && asset.global && loaded(asset.global)) {
-      return { asset, status: 'already-loaded' };
+      return Promise.resolve({ asset: asset, status: 'already-loaded' });
     }
-    await tryPrimaryThenFallback(asset);
-    return { asset, status: 'loaded' };
+    return tryPrimaryThenFallback(asset).then(function () {
+      return { asset: asset, status: 'loaded' };
+    });
   }
 
-  // 串行加载：dayjs antd / icons 的全局变量依赖 React/ReactDOM 先就绪
-  async function boot() {
-    for (const asset of ASSETS) await load(asset);
+  /* boot: 串行加载所有资源（React → ReactDOM → dayjs → icons → antd）
+   * 串行是因为 antd 依赖 React/ReactDOM 先就绪
+   */
+  function boot() {
+    var chain = Promise.resolve();
+    ASSETS.forEach(function (asset) {
+      chain = chain.then(function () { return load(asset); });
+    });
+    return chain;
   }
 
   global.ArgusCDN = {
-    VERSIONS,
-    ASSETS,
-    PRIMARY,
-    FALLBACK,
-    ready: once(() => boot().then(() => ({ versions: VERSIONS })))
+    VERSIONS: VERSIONS,
+    ASSETS: ASSETS,
+    PRIMARY: PRIMARY,
+    FALLBACK: FALLBACK,
+    ready: once(function () {
+      return boot().then(function () { return { versions: VERSIONS }; });
+    })
   };
 })(typeof window !== 'undefined' ? window : this);

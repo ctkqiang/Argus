@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Argus（观枢）文档中心 — TLS 解密设计" />
+  <title>TLS 解密设计 | Argus（观枢）</title>
+  <link rel="preconnect" href="https://unpkg.com" crossorigin />
+  <link rel="dns-prefetch" href="https://unpkg.com" />
+  <link rel="stylesheet" href="https://unpkg.com/antd@5.21.4/dist/reset.css" crossorigin="anonymous" referrerpolicy="no-referrer-when-downgrade" />
+  <link rel="stylesheet" href="./css/styles.css" />
+  <link rel="stylesheet" href="./css/doc-page.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="app-header">
+      <a class="app-brand" href="index.html">
+        <div class="brand-dot"></div>
+        <span>Argus（观枢）文档中心</span>
+      </a>
+      <nav class="app-nav">
+        <a class="nav-link" href="index.html">首页</a>
+<a class="nav-link" href="architecture.html">架构设计</a>
+<a class="nav-link" href="traffic-interception.html">流量引流</a>
+<a class="nav-link" href="pod-identity.html">Pod 身份</a>
+<a class="nav-link active" href="tls-design.html">TLS 解密</a>
+<a class="nav-link" href="runmodes-failure.html">运行模式矩阵</a>
+      </nav>
+      <div class="header-actions">
+        <a class="btn btn-default btn-sm" href="https://github.com/ctkqiang/argus" target="_blank" rel="noopener">GitHub</a>
+      </div>
+    </header>
+    <main class="doc-content">
+      <h1 id="tls-designmd-ca">tls-design.md — 两种可见模式 + CA 信任模型 + 证书轮换 + 风险 + 降级</h1>
+<h2 id="1">1. 两种可见模式</h2>
+<table>
+<thead>
+<tr>
+<th>模式</th>
+<th>能否看到 HTTP body / prompt？</th>
+<th>适用场景</th>
+<th>对客户端的要求</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>A. 被动观测（passive observation）</strong></td>
+<td>❌。只能看到 ClientHello SNI / JA3 / 握手 TLS 版本 / 流大小 / RTT 这类元数据。</td>
+<td>1) 合规环境严格禁止中间人；2) LLMProvider.skipTLSInspection=true 的特例白名单；3) B 模式失败降级回 A。</td>
+<td>零：业务侧什么都不用改，业务感知不到观枢的存在。</td>
+</tr>
+<tr>
+<td><strong>B. TLS 解密检测（TLS-terminated inspection，MVP 默认）</strong></td>
+<td>✅。网关动态签叶子证书把 TLS 终止在自身，body 过检测流水线之后再和真实上游重握手。</td>
+<td>默认，绝大多数 LLMProvider。</td>
+<td>需要业务 Pod 的 trust store 里有 Argus 的 CA 根证书（通过 MutatingWebhook 自动注入，不算业务改造 C3）。</td>
+</tr>
+</tbody>
+</table>
+<p>MVP 默认行为：<strong>B 开启，A 作为 fallback</strong>。</p>
+<h2 id="2-ca">2. CA 根证书要求 &amp; 信任模型</h2>
+<ul>
+<li>根证书（<code>argus-ca-tls</code> Secret）<strong>只能有一份</strong>，放在 <code>argus</code> 命名空间，keys = <code>tls.crt</code>, <code>tls.key</code>。</li>
+<li>根证书密钥算法：RSA-2048 或 ECDSA P-256。禁止 RSA-1024、md5、sha1。</li>
+<li>根证书有效期 ≤ 365 天；叶子证书 ≤ 24h。</li>
+<li>根证书信任链：<br />
+  1. MutatingWebhook 在 Pod 创建时，把 <code>tls.crt</code> 注入到 Pod 内 <code>/etc/ssl/certs/argus-ca.pem</code>。<br />
+  2. 设环境变量 <code>SSL_CERT_FILE=/etc/ssl/certs/argus-ca.pem</code>（对 Python requests、Go stdlib tls、curl 都生效）。<br />
+  3. 下列<strong>三类白名单</strong>不解密：<ul>
+<li><code>ASP.scope.excludeNamespaces</code>（如 kube-system、监控）。</li>
+<li><code>LLMProvider.skipTLSInspection=true</code>。</li>
+<li>Pod annotation <code>argus.argus.io/inspect=skip</code>（审计级开关，仅限 incident 临时用）。</li>
+</ul>
+</li>
+<li>根证书<strong>私钥</strong>（<code>tls.key</code>）：只能在 controller 生成叶子证书时用，<strong>绝不能挂载到业务 Pod</strong>（webhook 只注 tls.crt）；<br />
+  绝不能以文件形式写入宿主机（只存在内存里的 tls.Config）；绝不能打进 AIEvent 日志。</li>
+</ul>
+<h2 id="3">3. 证书生成逻辑 &amp; 轮换</h2>
+<table>
+<thead>
+<tr>
+<th>对象</th>
+<th>谁生成</th>
+<th>怎么轮换</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>根 CA（<code>argus-ca-tls</code>）</td>
+<td>首次安装时 cert-manager <code>Issuer</code> / <code>ClusterIssuer</code> 生成（helm values <code>tlsInspection.ca.generate=true</code>）。</td>
+<td>cert-manager 到期前自动 renew。<strong>手动轮换流程</strong>：1) 新老两张根证书都注进业务 trust store 过一段兼容期；2) 老根到期后只留新根。</td>
+</tr>
+<tr>
+<td>叶子证书（每个 SNI 一张，&lt;24h）</td>
+<td>gateway 启动时读根 Secret，遇到新 SNI 当场签，存在内存 LRU（默认 1024 条，LRU 淘汰冷的 SNI）。</td>
+<td>过期前 2h 自动重签。<strong>不持久化到 PVC</strong>，重启重新签就行。</td>
+</tr>
+</tbody>
+</table>
+<h2 id="4">4. 安全风险影响表</h2>
+<table>
+<thead>
+<tr>
+<th>风险</th>
+<th>发生条件</th>
+<th>对安全的影响</th>
+<th>Mitigation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CA 根私钥泄漏</td>
+<td>有人拿到了 <code>argus-ca-tls</code> Secret 写权限</td>
+<td>攻击者可以签任何域名的证书，观枢的信任根变成攻击者的 MITM 工具</td>
+<td>① 最小 RBAC：只有 controller/webhook SA 能读这个 Secret；② 根私钥建议放 KMS 而不是裸 Secret（下一阶段做）；③ 轮换流程文档化。</td>
+</tr>
+<tr>
+<td>业务 Pod 没信任 CA</td>
+<td>webhook 没装成 / 基础镜像不认 <code>SSL_CERT_FILE</code></td>
+<td>B 模式下业务握手失败，表现为所有出向 LLM 请求失败</td>
+<td>降级见 §5 表；同时提供"按 Pod 跳过解密"的 annotation 应急。</td>
+</tr>
+<tr>
+<td>白名单绕过</td>
+<td>有人在 ASP scope 里把整个集群包进 excludeNamespaces</td>
+<td>所有流量不解密，等于观枢白开了</td>
+<td>① ASP CRD 做 admission webhook 校验（下一阶段）；② controller 指标 <code>argus_asp_excluded_namespaces_total</code> 设 Prometheus 告警。</td>
+</tr>
+<tr>
+<td>用 InsecureSkipVerify 绕校验</td>
+<td>图省事把上游 TLS Verify 关了</td>
+<td>上游证书被换了也发现不了，等于中间人两次</td>
+<td><strong>代码里一律不允许</strong>（§10.2 强制 + pre-commit hook grep）；有自签上游场景，显式把上游 CA 塞进 <code>LLMProvider.upstream.ca_bundle_ref</code>。</td>
+</tr>
+</tbody>
+</table>
+<h2 id="5-6">5. 故障降级行为表（共 6 条，每行可直接写测试）</h2>
+<table>
+<thead>
+<tr>
+<th>故障</th>
+<th>ASP.mode</th>
+<th>ASP.failureMode</th>
+<th>观枢行为</th>
+<th>是否生成 AIEvent？</th>
+<th>event.failure_reason / severity</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CA Secret 完全读不到</td>
+<td>monitor</td>
+<td>fail-open</td>
+<td>A 模式直通，只记元数据</td>
+<td>✅</td>
+<td><code>ca_secret_missing</code> / WARN</td>
+</tr>
+<tr>
+<td>CA Secret 完全读不到</td>
+<td>monitor</td>
+<td>fail-closed</td>
+<td>阻断（握手层失败）</td>
+<td>✅</td>
+<td><code>ca_secret_missing</code> / ERROR</td>
+</tr>
+<tr>
+<td>CA Secret 完全读不到</td>
+<td>enforce</td>
+<td>fail-open</td>
+<td>A 模式直通，记元数据</td>
+<td>✅</td>
+<td><code>ca_secret_missing</code> / WARN</td>
+</tr>
+<tr>
+<td>CA Secret 完全读不到</td>
+<td>enforce</td>
+<td>fail-closed</td>
+<td>阻断（握手层失败，HTTP 451 回业务）</td>
+<td>✅</td>
+<td><code>ca_secret_missing</code></td>
+</tr>
+<tr>
+<td>某 SNI 签叶证书失败（根证书过期 / SNI 非法字符）</td>
+<td>任意</td>
+<td>fail-open</td>
+<td>该次请求回 A 模式直通，其余 SNI 正常工作</td>
+<td>✅</td>
+<td><code>leaf_cert_sign_failure</code></td>
+</tr>
+<tr>
+<td>某 SNI 签叶证书失败</td>
+<td>任意</td>
+<td>fail-closed</td>
+<td>该次请求阻断，其余正常</td>
+<td>✅</td>
+<td><code>leaf_cert_sign_failure</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="6">6. 流量拦截范围 &amp; 绕过规则（显式禁止的"捷径"）</h2>
+<ul>
+<li>拦截范围必须是：<br />
+  1. <code>LLMProvider.hosts</code> 命中。<br />
+  2. 且目标端口是 443（或 ASP 中显式列出来的其他 TLS 端口）。<br />
+  3. 且没有命中 §2 三类白名单。</li>
+<li><strong>显式禁止</strong>（代码评审硬红线，pre-commit 里已经加了一条）：</li>
+<li>任何 <code>tls.Config.InsecureSkipVerify = true</code>。</li>
+<li>用 <code>http.Transport{ TLSClientConfig: &amp;tls.Config{... 关了 Verify} }</code>。</li>
+<li>直接 <code>curl -k</code> 或 <code>openssl s_client</code> 绕校验的"调试脚本"打进镜像。</li>
+<li>合规例外：如果上游真的是自签，必须走 <code>LLMProvider.upstream.ca_bundle_ref</code> 把上游 CA 单独挂进来；<br />
+  每一条都必须在 PR 里写明"这条为什么自签 + 什么时候可以切回公签"。</li>
+</ul>
+    </main>
+    <footer class="app-footer">
+      <div class="footer-row">
+        <span>Made with care by 哪吒网络安全 - Argus 核心团队</span>
+        <span class="divider">|</span>
+        <span>License: Apache-2.0</span>
+      </div>
+    </footer>
+  </div>
+</body>
+</html>

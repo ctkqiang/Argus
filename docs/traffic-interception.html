@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Argus（观枢）文档中心 — 流量引流" />
+  <title>流量引流 | Argus（观枢）</title>
+  <link rel="preconnect" href="https://unpkg.com" crossorigin />
+  <link rel="dns-prefetch" href="https://unpkg.com" />
+  <link rel="stylesheet" href="https://unpkg.com/antd@5.21.4/dist/reset.css" crossorigin="anonymous" referrerpolicy="no-referrer-when-downgrade" />
+  <link rel="stylesheet" href="./css/styles.css" />
+  <link rel="stylesheet" href="./css/doc-page.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="app-header">
+      <a class="app-brand" href="index.html">
+        <div class="brand-dot"></div>
+        <span>Argus（观枢）文档中心</span>
+      </a>
+      <nav class="app-nav">
+        <a class="nav-link" href="index.html">首页</a>
+<a class="nav-link" href="architecture.html">架构设计</a>
+<a class="nav-link active" href="traffic-interception.html">流量引流</a>
+<a class="nav-link" href="pod-identity.html">Pod 身份</a>
+<a class="nav-link" href="tls-design.html">TLS 解密</a>
+<a class="nav-link" href="runmodes-failure.html">运行模式矩阵</a>
+      </nav>
+      <div class="header-actions">
+        <a class="btn btn-default btn-sm" href="https://github.com/ctkqiang/argus" target="_blank" rel="noopener">GitHub</a>
+      </div>
+    </header>
+    <main class="doc-content">
+      <h1 id="traffic-interceptionmd-mvp">traffic-interception.md — 透明出口引流四方案对比 &amp; MVP 首选/兜底</h1>
+<h2 id="1">1. 对比表（四方案各自的优势 + 硬限制，不绕弯）</h2>
+<table>
+<thead>
+<tr>
+<th>方案</th>
+<th>工作层</th>
+<th>对业务影响（越小越好）</th>
+<th>优势</th>
+<th><strong>硬限制</strong>（必须写进部署前检查项）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>A. Cilium eBPF（<code>CiliumEgressGatewayPolicy</code>）</strong></td>
+<td>L3/L4 eBPF hook，节点出口</td>
+<td>0（无 sidecar/agent）</td>
+<td>1) 不碰业务 netns；2) Pod 粒度策略，能跟 ASP.scope 对齐；3) 不需要节点级 root ns 里额外 iptables chain</td>
+<td>1) 必须装 Cilium ≥ 1.14 且开 <code>egressGateway.enabled=true</code>；2) 一些托管 K8s（GKE Autopilot 特定模式）不允许替换 CNI，直接不适用。</td>
+</tr>
+<tr>
+<td><strong>B. Istio Egress Gateway</strong></td>
+<td>L7 sidecar 网格</td>
+<td>❌ 业务 Pod 强制 sidecar，违反 C2</td>
+<td>协议识别细，遥测全</td>
+<td><strong>MVP 阶段一直接排除</strong>（checklist C2 明确：全集群无业务 sidecar）。</td>
+</tr>
+<tr>
+<td><strong>C. iptables/nftables + tproxy DaemonSet</strong></td>
+<td>netfilter TPROXY（TPROXY 只能 PREROUTING/OUTPUT 的 mangle）</td>
+<td>很小（只在 argus-system 装一个节点级 DaemonSet <code>ds-node-tproxy</code>，<strong>不在业务 Pod 加任何东西</strong>）</td>
+<td>任何 vanilla K8s 都能用，不挑 CNI；和 Cilium 互斥时的兜底方案</td>
+<td>1) 只能抓 TCP（UDP DNS 不在这里处理）；2) 同一节点已用 tproxy（mesh 出向/其他透明代理）会冲突，装之前必须 <code>iptables-save | grep -i tproxy</code> 空；3) DaemonSet 需要 <code>NET_ADMIN</code> cap。</td>
+</tr>
+<tr>
+<td><strong>D. VPC / 云厂商路由表（下一跳 NLB → gateway）</strong></td>
+<td>VPC 路由</td>
+<td>0</td>
+<td>不依赖 CNI，统一云上出口</td>
+<td>1) 只在<strong>自管 K8s 且所有工作节点都在同一个可配置路由表的 VPC subnet</strong> 才行；2) 托管 K8s node pool 往往不让你改路由表下一跳，直接排除；3) SNAT 场景源 IP 不可信，身份溯源要单独处理。</td>
+</tr>
+</tbody>
+</table>
+<p>结论：<strong>MVP 默认 A（Cilium eBPF），兜底 C（iptables TPROXY），B 排除，D 仅特例</strong>。</p>
+<h2 id="2-mvp-cilium-ebpf">2. MVP 首选：Cilium eBPF 安装步骤</h2>
+<p>前置条件（<code>bash deploy/examples/dev/kind-up.sh</code> 会自动做掉前 3 项）：<br />
+1. Cilium ≥ 1.14，helm values <code>egressGateway.enabled=true</code>。<br />
+2. 网关 Service <code>argus-gateway</code>（ClusterIP / LoadBalancer 都行，但必须有稳定 k8s service 名）。<br />
+3. 所有 <code>LLMProvider.hosts</code> 都对应到明确的 DNS 域名 / CIDR（不要用 <code>0.0.0.0/0</code> 全量引流，那会把网关打挂）。</p>
+<p>安装：</p>
+<pre><code class="language-bash">helm install argus ./deploy/helm/argus -n argus --create-namespace \
+  --set trafficInterceptor.engine=cilium
+# 真实 CEGP 模板放在 deploy/helm/argus/templates/cilium/（当前阶段是 README，1-B 补 YAML）
+</code></pre>
+<p>局限性：<br />
+- 对非 443 的 LLM 出向（极少）需要另加 <code>toPorts</code> 规则。<br />
+- 同一 Pod 同时有允许的 LLM 域名和禁止的非 LLM 域名时，别把非 LLM 也 EGW 进 gateway。</p>
+<p>回滚：</p>
+<pre><code class="language-bash"># 1) 先删 CEGP，让出口回到默认路径
+kubectl delete ciliumegressgatewaypolicies.cilium.io -n argus -l app.kubernetes.io/name=argus
+# 2) 再 helm uninstall argus（如果你确实要整个删）
+helm uninstall argus -n argus
+</code></pre>
+<h2 id="3-mvp-iptablesnftables-tproxy">3. MVP 兜底：iptables/nftables TPROXY 安装步骤</h2>
+<p>前置条件：<br />
+1. <code>kubectl get nodes -o wide</code> 确认所有节点 OS 都有 xt_TPROXY（一般 4.18+ 都有）。<br />
+2. <code>iptables -t mangle -S | grep -i tproxy</code> 必须空；如果不是，要么换节点，要么关别家 tproxy。<br />
+3. <code>argus-gateway</code> Service 要启用 <code>externalTrafficPolicy=Local</code> 或者 podIP 可达（否则 TPROXY 回来的报文找不到原始 dst）。</p>
+<p>安装（DaemonSet 模板在 <code>deploy/helm/argus/templates/iptables/</code>，当前只给 README，下阶段补 YAML）：</p>
+<pre><code class="language-bash">helm install argus ./deploy/helm/argus -n argus --create-namespace \
+  --set trafficInterceptor.engine=iptables
+</code></pre>
+<p><strong>引流层故障降级（硬规则，别写捷径）</strong>：<code>ds-node-tproxy</code> Pod 崩时自动：<br />
+1. 节点 prerouting/output 两个链的 return 规则跳回默认路由表，业务直连 LLM 厂商（安全降级）。<br />
+2. Prometheus 规则 <code>argus_tproxy_daemonset_unavailable</code> 触发告警（运维去查）。<br />
+3. 不静默丢包：如果 return 规则插不进去（极端情况），DaemonSet 用 <code>preStop</code> 手动清理，避免留下黑洞。</p>
+<p>局限性：<br />
+- 只能处理 TCP 443，不是所有 L4。<br />
+- <code>hostNetwork=true</code> 的业务 Pod 走 OUTPUT 链，要和正常 Pod 的 PREROUTING 分开处理（身份溯源见 pod-identity.md 矩阵）。</p>
+<p>回滚：</p>
+<pre><code class="language-bash">helm uninstall argus -n argus
+# 再逐节点清残留（一般 DaemonSet preStop 已做，这步是保险）
+# 每个节点：iptables -t mangle -D PREROUTING -j ARGUS_TPROXY ；iptables -t mangle -D OUTPUT -j ARGUS_TPROXY
+</code></pre>
+    </main>
+    <footer class="app-footer">
+      <div class="footer-row">
+        <span>Made with care by 哪吒网络安全 - Argus 核心团队</span>
+        <span class="divider">|</span>
+        <span>License: Apache-2.0</span>
+      </div>
+    </footer>
+  </div>
+</body>
+</html>
