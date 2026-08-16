@@ -1,8 +1,29 @@
 /*
   Argus - EventService 事件上报契约
-  - AIEvent 字段编号 1-18 与设计文档一致，新增字段从 19 开始加。
-  - 事件上报：Gateway 客户端流式批量推 → Controller 收完整批后 ACK。
-  - 至少一次投递（at-least-once）：Controller 必须按 event_id 去重。
+
+  一、字段编号承诺（生产零容忍违反）
+  - AIEvent 字段编号 1..18 与 argus/v1alpha1 设计文档一一对应，永久锁定。
+  - 新增字段一律从 22 起继续向后追加（19..21 已被 detection_results /
+    risk_score / final_action 占用；reserved 22..500 防止被人插队抢占）。
+  - 严禁：删字段、复用字号、改类型、改同名 repeated/singular。
+    必须改的，废弃旧字段并在注释中写 deprecated=true，然后新建字段 +
+    新编号 + 迁移期 N 个版本。
+
+  二、投递与幂等语义
+  - 事件上报 = Gateway 客户端流式批量推 → Controller 收完整批后 ACK。
+  - 至少一次投递（at-least-once）：
+    * Controller 持久化层必须按 event_id 做唯一键 / 幂等 upsert。
+    * 同一批流里出现重复 event_id，Controller 去重后按 1 次计。
+    * Gateway 收到 failed_event_ids 后，原样（保留原 event_id）在下一条流里重试，
+      严禁生成新的 event_id 重发（否则去重失效，storage 会双倍写）。
+  - FinalAction / Severity 一律用 enum，别用 magic string；大小写、拼错一
+    律会导致策略引擎 threshold 匹配失败。
+
+  三、时间与时长语义
+  - 所有绝对时间戳统一 google.protobuf.Timestamp（秒 + 纳秒），跨系统
+    时区、闰秒、高精度埋点都统一处理；严禁再使用 int64 epoch ms 自己乘 1e6。
+  - 所有重试间隔 / 超时 / 窗口时长统一 google.protobuf.Duration；
+    严禁 ms 整数导致单位理解歧义和"+/- 1ms off-by-one"。
 */
 syntax = "proto3";
 
@@ -10,122 +31,186 @@ package argus.event.v1alpha1;
 
 option go_package = "github.com/ctkqiang/argus/pkg/pb/argus/event/v1alpha1;event";
 
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/duration.proto";
 import "argus/detection.proto";
 
 // EventService Gateway → Controller 的事件上报。
-// 客户端半关闭流之后，Controller 处理整批并返回一次 ReportAck。
+// 客户端半关闭流（CloseSend）之后，Controller 处理整批并返回一次 ReportAck。
 service EventService {
+  // ReportEvents 客户端流式批量上报审计事件；服务端对整批 ACK。
+  // 禁止中途调用 WriteStatus 返回错误：流异常终止由客户端按 last_event_id
+  // 与 failed_event_ids 做整批重放。
   rpc ReportEvents(stream AIEvent) returns (ReportAck);
 }
 
-// FinalAction 网关最后的放行/阻断决策。枚举比字符串稳，别乱拼大小写。
+// FinalAction 网关最后的放行/阻断决策。
+// 一旦在 policy engine 里定好，网关必须严格执行（不能"没匹配就随便放"）。
 enum FinalAction {
+  option allow_alias = false;
+
+  // 未设置；gateway / controller 都要把 UNSPECIFIED 当非法输入处理
+  // （要么 WARN+降级到 BLOCK，要么直接拒绝入库，看 policy.thresholds）。
   FINAL_ACTION_UNSPECIFIED = 0;
+
+  // 无风险、放行。
   FINAL_ACTION_ALLOW = 1;
+  // 有命中且超过阻断阈值、阻断请求。
   FINAL_ACTION_BLOCK = 2;
+  // 检测器/策略引擎失败但系统判定降级放行（记录 failed_reason）。
   FINAL_ACTION_DEGRADED_ALLOW = 3;
+  // 检测器/策略引擎失败但系统判定降级阻断（记录 failed_reason）。
   FINAL_ACTION_DEGRADED_BLOCK = 4;
+
+  // 预留 100-999：未来新增"挑战/重试/人工复核"等动作前先落文档评审。
+  reserved 100 to 999;
 }
 
-// Severity 事件整体严重度，和 policy.thresholds 对齐。
+// Severity 事件整体严重度，与 policy.thresholds 的四段严格对齐。
 enum Severity {
+  option allow_alias = false;
+
+  // 未评级：gateway 要当异常处理（至少打 WARN 日志），别默认塞给用户。
   SEVERITY_UNSPECIFIED = 0;
-  SEVERITY_LOW = 1;
-  SEVERITY_MEDIUM = 2;
-  SEVERITY_HIGH = 3;
-  SEVERITY_CRITICAL = 4;
+
+  SEVERITY_LOW      = 1;  // 0.00 ≤ risk_score < 0.35
+  SEVERITY_MEDIUM   = 2;  // 0.35 ≤ risk_score < 0.70
+  SEVERITY_HIGH     = 3;  // 0.70 ≤ risk_score < 0.90
+  SEVERITY_CRITICAL = 4;  // 0.90 ≤ risk_score ≤ 1.00
+
+  // 预留 100-999：新增严重度必须先同步 policy.thresholds。
+  reserved 100 to 999;
 }
 
 // AIEvent 一条 LLM 出站请求对应的审计事件。
-// 1-18 编号锁定，以后要加新字段一律从 19 往后追加，不许插队。
+//
+// 字段编号约定：
+//   1-18  锁定（对应设计文档"AIEvent 字段基线 v1"）
+//   19-21 现用（detection_results / risk_score / final_action）
+//   22-500 reserved，新字段一律从 501 开始
 message AIEvent {
-  // 1 事件全局唯一 ID。推荐 uuid v4。
+  // 22-500：预留给未来演进，严禁直接插队使用。
+  reserved 22 to 500;
+
+  // 1 事件全局唯一 ID。
+  //   * 生成方：Gateway。建议 uuid v4。
+  //   * 幂等：Controller 持久化层必须按 (cluster_id, event_id) 做唯一键。
+  //   * 重试：重传时 event_id 必须与首次上报时完全相同（不准重新生成）。
   string event_id = 1;
 
-  // 2 事件发生时间。epoch 毫秒。
-  int64 timestamp = 2;
+  // 2 事件发生时间（Gateway 首次"看到请求/响应完成"的绝对时间）。
+  //   统一 google.protobuf.Timestamp（秒 + 纳秒），禁止用毫秒 epoch 自己换算。
+  google.protobuf.Timestamp timestamp = 2;
 
-  // 3 集群 ID。部署时通过 env/CRD 显式注入；MVP 别自己算 CA 哈希，算不准。
+  // 3 集群 ID。部署时通过 env / CRD 显式注入；MVP 不要自己从 apiserver
+  //   拉 namespace 哈希算"疑似 cluster id"，算不准会导致跨集群事件碰撞。
   string cluster_id = 3;
 
-  // 4 源 Pod 命名空间。
+  // 4 源 Pod 命名空间。为空字符串视为非法事件（gateway 自己过滤掉）。
   string namespace = 4;
 
   // 5 源 Pod 名。
   string pod_name = 5;
 
-  // 6 源 Pod 对应的上层工作负载（Deployment/StatefulSet/DaemonSet...）名。
+  // 6 源 Pod 对应的上层工作负载（Deployment/StatefulSet/DaemonSet/...）名。
+  //   没解析到就空串（不要写 "unknown" 这种占位，空串语义更清晰）。
   string workload = 6;
 
-  // 7 源容器名。MVP 没有就空串（粒度到 pod）。
+  // 7 源容器名。MVP 如果只到 Pod 粒度就空串。
   string container = 7;
 
-  // 8 五元组源 IP。一般是 PodIP；hostNetwork 就是节点 IP。
+  // 8 五元组源 IP。一般是 PodIP；hostNetwork Pod 就是节点 IP。
+  //   存的是 IP 字符串（v4 dotted 或 v6 canonical），禁止前缀 /24 这种 CIDR。
   string source_ip = 8;
 
-  // 9 请求目标。优先 SNI / Host，拿不到就 IP:port。
+  // 9 请求目标。优先 SNI / Host header；拿不到就 IP:port。
+  //   不要把完整 URL（包含 path/query）塞进来，审计检索会炸。纯 host/ip:port。
   string destination = 9;
 
   // 10 匹配到的 LLMProvider 资源名（metadata.name）。
+  //    空串 = 没命中任何 LLMProvider；这时 provider_unknown 应写入 failure_reason。
   string provider = 10;
 
-  // 11 模型 ID，比如 gpt-4o。解析不到空串。
+  // 11 模型 ID，比如 gpt-4o / anthropic.claude-v2。解析不到就空串。
   string model = 11;
 
   // 12 会话 ID。网关按 (namespace, pod, provider, model, 时间窗口) 聚出来的串 ID。
+  //    主要用于 detector 做会话历史拼接；没有会话概念可以空串。
   string session_id = 12;
 
   // 13 请求 ID。优先复用上游 X-Request-Id；没有网关自己生成 uuid。
+  //    注意：这是"业务请求"的 ID，和事件 ID（event_id）不是一回事。
   string request_id = 13;
 
-  // 14 请求体截断 + 脱敏后的原文。默认 4KiB 上限。
+  // 14 请求体截断 + 脱敏后的原文。默认 4KiB 上限；超长按 UTF-8 rune 截断，
+  //    严禁切在 surrogate / 多字节中间。敏感字段（token、密钥、PII）在此
+  //    之前必须在 gateway 层做过脱敏替换，禁止原文打进事件。
   string request_payload = 14;
 
-  // 15 响应体截断 + 脱敏后的原文。默认 4KiB 上限。
+  // 15 响应体截断 + 脱敏后的原文。默认 4KiB 上限；规则同 request_payload。
   string response_payload = 15;
 
-  // 16 本事件的严重度分级，对齐 policy.thresholds。
+  // 16 本事件的严重度分级，对齐 policy.thresholds 四段（详见 Severity 注释）。
   Severity severity = 16;
 
-  // 17 request_payload 里的 prompt 文本（非 tools/system）做的稳定哈希，
-  // 用来做重复攻击聚类。推荐 sha256（hex），没算就空串。
+  // 17 request_payload 里的 prompt 文本（只取 user prompt，不包含 tools /
+  //    system）做的稳定哈希，用来做重复攻击聚类。
+  //    推荐算法：sha256（hex 小写 64 字符）。没算就空串。
   string prompt_hash = 17;
 
-  // 18 如果本事件走了降级/失败，这里写原因码：detector_timeout /
-  // policy_unavailable / tls_inspect_failed / provider_unknown。
-  // 没有任何失败就空串。
+  // 18 如果本事件走了降级/失败，这里写原因码（稳定字符串，禁止带空格换行）：
+  //      detector_timeout        检测器流水线超时
+  //      policy_unavailable      policy / thresholds 获取失败
+  //      tls_inspect_failed      TLS 握手中途失败 / ALPN 不支持 / MITM CA 不可信
+  //      provider_unknown        出站域名匹配不到 LLMProvider 资源
+  //      storage_backoff         上报方暂时过载，Controller 建议稍后重试
+  //    没有任何失败就空串；有失败时 severity 也应同步升级（至少 MEDIUM）。
   string failure_reason = 18;
 
-  // 19 所有检测器结果。按 pipeline 顺序追加（rules/heuristic/encoding/semantic）。
+  // 19 所有检测器结果。按 pipeline 顺序追加：rules → heuristic → encoding → semantic。
+  //    空列表 = 没跑任何检测器（常见于降级路径 + failure_reason=detector_timeout）。
   repeated argus.detection.v1alpha1.DetectionResult detection_results = 19;
 
-  // 20 风险引擎最终打分，范围 [0.0, 1.0]。
+  // 20 风险引擎最终打分，取值范围 [0.0, 1.0]。
+  //    * 超界的 score 入库前必须按 max(min(x, 1), 0) 归一，并打 WARN 日志。
+  //    * NaN / ±Inf 视为非法输入：controller 存为 0.0 + failure_reason=storage_backoff，
+  //      让 gateway 下一批带该事件 ID 重放。
   double risk_score = 20;
 
-  // 21 网关最后决策。
+  // 21 网关最后决策。决定请求是否实际抵达 LLM provider，审计必须可追溯。
   FinalAction final_action = 21;
 }
 
 // ReportAck 控制器对一整批事件流的确认。
+// 注意：返回值是"整批视角"的 ACK，不是"单条事件"的细粒度 ACK。
+// 单条事件失败用 failed_event_ids 表达；gateway 负责重新组织下一条流。
 message ReportAck {
-  // 1 本流实际收到的事件条数。
+  // 1 本流实际收到的事件条数（= Controller 侧 stream.Recv() 成功的次数）。
+  //   用来帮助 gateway 排查"我发了 32 条但收到的只有 11 条"这种传输层面丢失。
   int64 received_events = 1;
 
-  // 2 成功写到持久化介质（本地 PV / 对象存储）的条数。
+  // 2 成功写到持久化介质（本地 PV / 对象存储 / 分析 DB）的条数。
+  //   注意：去重后才算"persist 成功"；重复事件不会让这个计数器累加。
   int64 persisted_events = 2;
 
-  // 3 本轮失败的 event_id 列表。网关在下一条流里原样重试这些事件。
+  // 3 本轮失败的 event_id 列表。Gateway 在下一条流里**原样重试这些事件**
+  //   （event_id 不能变；否则幂等会失效，storage 双倍写）。
+  //   Controller 必须保证 failed_event_ids 中任意 ID 都没有被持久化。
   repeated string failed_event_ids = 3;
 
-  // 4 本流最后一条成功持久化的 event_id。网关用来推进游标。
+  // 4 本流最后一条成功持久化的 event_id。
+  //   Gateway 用来推进本地游标：比它更旧的事件可以放心丢掉。
+  //   空串 = 本批一条都没成功持久化（gateway 应整批回滚重发）。
   string last_event_id = 4;
 
-  // 5 Controller 建议网关的重试间隔，毫秒。默认 0 = 网关自己决定退避。
-  int64 retry_delay_ms = 5;
+  // 5 Controller 建议网关的重试间隔。默认 0 = 网关自己决定指数退避。
+  //   用 Duration，别再传毫秒 int 了（±1ms 问题和单位误解直接归零）。
+  google.protobuf.Duration retry_delay = 5;
 
-  // 6 本批的处理窗口开始时间（controller 侧），epoch 毫秒。0 代表没提供。
-  int64 window_start_ms = 6;
+  // 6 本批的处理窗口开始时间（controller 侧），0 = 没提供。
+  google.protobuf.Timestamp window_start = 6;
 
-  // 7 本批的处理窗口结束时间（controller 侧），epoch 毫秒。0 代表没提供。
-  int64 window_end_ms = 7;
+  // 7 本批的处理窗口结束时间（controller 侧），0 = 没提供。
+  //   gateway 据此判断 controller 是否还积压旧窗口，是否需要放慢上报速率。
+  google.protobuf.Timestamp window_end = 7;
 }

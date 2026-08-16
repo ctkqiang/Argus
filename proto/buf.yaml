@@ -1,10 +1,6 @@
 version: v2
 modules:
   - path: .
-    # includes 列出额外的"import 根"。
-    # 模块目录 . 默认已隐式作为 import 根，因此无需显式再加 "."。
-    # 若将来拆出 third_party/proto 之类第三方 proto 目录，把它追加到此处即可。
-    includes: []
 lint:
   use:
     - STANDARD
