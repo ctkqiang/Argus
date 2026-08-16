@@ -1,0 +1,96 @@
+{
+  "$schema": "https://developer.mozilla.org/en-US/docs/Web/Security/Subresource_Integrity",
+  "project": "argus-docs",
+  "cdn_strategy": "unpkg primary + jsdelivr fallback",
+  "ant_design_ref": "https://ant.design/docs/react/introduce-cn#浏览器引入",
+  "allowed_hosts": [
+    "cdn.jsdelivr.net",
+    "unpkg.com"
+  ],
+  "assets": [
+    {
+      "order": 1,
+      "name": "antd reset.css",
+      "kind": "css",
+      "global": null,
+      "version": "5.21.4",
+      "primary": "https://unpkg.com/antd@5.21.4/dist/reset.css",
+      "fallback": "https://cdn.jsdelivr.net/npm/antd@5.21.4/dist/reset.css",
+      "served_via": "primary",
+      "integrity": "sha384-Rh5FRX7P6eIAOLQJXihyUaEa7SElWzcO7ZQk3pb6YhVJVfBq1m7QAZXxSy+lIAuJ",
+      "size_bytes": 3713
+    },
+    {
+      "order": 2,
+      "name": "react",
+      "kind": "js",
+      "global": "React",
+      "version": "18.3.1",
+      "primary": "https://unpkg.com/react@18.3.1/umd/react.production.min.js",
+      "fallback": "https://cdn.jsdelivr.net/npm/react@18.3.1/umd/react.production.min.js",
+      "served_via": "primary",
+      "integrity": "sha384-DGyLxAyjq0f9SPpVevD6IgztCFlnMF6oW/XQGmfe+IsZ8TqEiDrcHkMLKI6fiB/Z",
+      "size_bytes": 10751
+    },
+    {
+      "order": 3,
+      "name": "react-dom",
+      "kind": "js",
+      "global": "ReactDOM",
+      "version": null,
+      "primary": "https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js",
+      "fallback": "https://cdn.jsdelivr.net/npm/react-dom@18.3.1/umd/react-dom.production.min.js",
+      "served_via": "primary",
+      "integrity": "sha384-gTGxhz21lVGYNMcdJOyq01Edg0jhn/c22nsx0kyqP0TxaV5WVdsSH1fSDUf5YJj1",
+      "size_bytes": 131835
+    },
+    {
+      "order": 4,
+      "name": "dayjs",
+      "kind": "js",
+      "global": "dayjs",
+      "version": "1.11.13",
+      "primary": "https://unpkg.com/dayjs@1.11.13/dayjs.min.js",
+      "fallback": "https://cdn.jsdelivr.net/npm/dayjs@1.11.13/dayjs.min.js",
+      "served_via": "primary",
+      "integrity": "sha384-DpVxUeeBWjUvUV1czyIHJAjh+jYUZFu2lLakbdua5vbwOrBGi1UgaKCHjTC+x3Ky",
+      "size_bytes": 7160
+    },
+    {
+      "order": 5,
+      "name": "dayjs locale zh-cn",
+      "kind": "js",
+      "global": null,
+      "version": "1.11.13",
+      "primary": "https://unpkg.com/dayjs@1.11.13/locale/zh-cn.js",
+      "fallback": "https://cdn.jsdelivr.net/npm/dayjs@1.11.13/locale/zh-cn.js",
+      "served_via": "primary",
+      "integrity": "sha384-JlOvD9rwLmKdB9EoDKPPtxT02Btalz7oisrWI0tS0cwjMnTvZB9ww5BpcPAnhn+a",
+      "size_bytes": 1463
+    },
+    {
+      "order": 6,
+      "name": "@ant-design/icons",
+      "kind": "js",
+      "global": "icons",
+      "version": null,
+      "primary": "https://unpkg.com/@ant-design/icons@5.6.1/dist/index.umd.min.js",
+      "fallback": "https://cdn.jsdelivr.net/npm/@ant-design/icons@5.6.1/dist/index.umd.min.js",
+      "served_via": "primary",
+      "integrity": "sha384-0EWwEDsIH8NINq/z7KdxJDjeP9rCWPurEK0BZnkfhKH9WQGpC8FPbOY0mDyOS2WU",
+      "size_bytes": 869004
+    },
+    {
+      "order": 7,
+      "name": "antd",
+      "kind": "js",
+      "global": "antd",
+      "version": "5.21.4",
+      "primary": "https://unpkg.com/antd@5.21.4/dist/antd.min.js",
+      "fallback": "https://cdn.jsdelivr.net/npm/antd@5.21.4/dist/antd.min.js",
+      "served_via": "primary",
+      "integrity": "sha384-aHcvD9lceo5OXgnbAcHp2RPWwCT3dsRbgapm0ASvhDyAYspgj1NC5k/NNUEsAT6v",
+      "size_bytes": 1526923
+    }
+  ]
+}
